@@ -4,7 +4,6 @@ import org.apache.poi.hssf.usermodel.HSSFRow;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.text.DecimalFormat;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -89,14 +88,14 @@ public class BTBParser extends AParser {
     }
 
     @Override
-    void parse() {
+    int parse() {
 
         String acctNumber;
 
         long dtCalcTurnover = 0;
         long  crCalcTurnover = 0;
 
-        int line = 1;
+        int line = 0;
 
         try {
             int maxRow = sheet.getLastRowNum();
@@ -105,6 +104,8 @@ public class BTBParser extends AParser {
             System.out.println("Statement for account: " + acctNumber);
 
             for (int rowNum = lastHeaderRow + 1; rowNum < maxRow - trailerRows; rowNum++) {
+
+                line++;
 
                 try {
                     HSSFRow row = sheet.getRow(rowNum);
@@ -152,14 +153,11 @@ public class BTBParser extends AParser {
                         System.out.println("E108. CSV file output error: " + e.getMessage());
                     }
 
-                    line++;
                 }
                 catch (Exception e) {
                     System.out.println("E110. Line " + line + " parsing error: " + e.getMessage());
                 }
             }
-
-            System.out.println("Done. " + line + " line(s) parsed.");
 
             String dtTurnoverStr = getStrNumber(sheet.getRow(maxRow - dtTurnoverRowDistance).getCell(turnoverColumn));
             String crTurnoverStr = getStrNumber(sheet.getRow(maxRow - crTurnoverRowDistance).getCell(turnoverColumn));
@@ -190,5 +188,6 @@ public class BTBParser extends AParser {
         catch (Exception e) {
             System.out.println("E100. Error: " + e.getMessage());
         }
+        return line;
     }
 }

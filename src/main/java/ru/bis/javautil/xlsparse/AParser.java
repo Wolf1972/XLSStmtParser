@@ -10,9 +10,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.*;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
@@ -21,7 +21,6 @@ abstract public class AParser {
     // Abstract class for any parser
     String inFileName;
     String outFileName;
-    OutputStream out;
     BufferedWriter writer;
 
     HSSFWorkbook book;
@@ -30,65 +29,71 @@ abstract public class AParser {
     XSSFWorkbook nBook;
     XSSFSheet nSheet;
 
-    abstract boolean check();
-    abstract void parse();
+    boolean check() { // Check statement for expected format
+        return true;
+    };
+    int parse() { // Parse all statement and create CSV
+        return 0;
+    };
 
-    boolean open(String inFileName, XLSType type, String outFileName, String charset) {
+    boolean process(String inFileName, XLSType type, String outFileName, String charset) {
         boolean result = false;
+        Charset chs;
+
         this.inFileName = inFileName;
-        try {
-            if (type == XLSType.XLSX) { // New XLSX format (XML ZIP)
-              nBook = new XSSFWorkbook(new FileInputStream(this.inFileName));
-              nSheet = nBook.getSheetAt(0);
-            }
-            else if (type == XLSType.XLS) { // Old XLS format (binary horror)
-                POIFSFileSystem fs = new POIFSFileSystem(new FileInputStream(this.inFileName));
-                book = new HSSFWorkbook(fs);
-                sheet = book.getSheetAt(0);
-            }
-        }
-        catch (Exception e) {
-            System.out.println("E001. Error opening input file: " + this.inFileName);
-        }
-        this.outFileName = outFileName;
-        try {
-            Charset chs = Charset.forName(charset);
+        try (FileInputStream in = new FileInputStream(this.inFileName)) { // Try for input
             try {
-                out = new FileOutputStream(outFileName);
-                writer = new BufferedWriter(new OutputStreamWriter(out, chs));
-                result = true;
+                if (type == XLSType.XLSX) { // New XLSX format (XML ZIP)
+                    nBook = new XSSFWorkbook(in);
+                    nSheet = nBook.getSheetAt(0);
+                } else if (type == XLSType.XLS) { // Old XLS format (binary horror)
+                    POIFSFileSystem fs = new POIFSFileSystem(new FileInputStream(this.inFileName));
+                    book = new HSSFWorkbook(fs);
+                    sheet = book.getSheetAt(0);
+                }
+                this.outFileName = outFileName;
+                try {
+                    chs = Charset.forName(charset);
+                }
+                catch (Exception e) {
+                    System.out.println("E021. Unknown output file charset: " + charset);
+                    chs = StandardCharsets.UTF_8; // Error, use charset by default
+                }
+                try (FileOutputStream out = new FileOutputStream(outFileName);
+                     OutputStreamWriter outwr = new OutputStreamWriter(out, chs);
+                     BufferedWriter writer = new BufferedWriter(outwr)) { // Try for output
+                    this.writer = writer;
+                    if (check()) {
+                        int lines = parse();
+                        System.out.println("Done. " + lines + " operation(s) created.");
+                    }
+                    result = true;
+                }
+                catch (Exception e) {
+                    System.out.println("E023. Error opening output file: " + this.outFileName + " : " + e.getMessage());
+                }
+                finally {
+                    try {
+                        if (book != null) {
+                            book.close();
+                        }
+                        if (nBook != null) {
+                            nBook.close();
+                        }
+                    }
+                    catch (Exception e) {
+                        System.out.println("E025. Error when closing XLS file: " + outFileName);
+                    }
+                }
             }
             catch (Exception e) {
-                System.out.println("E002. Error opening output file: " + this.outFileName + " : " + e.getMessage());
+                System.out.println("E022. Error opening XLS file: " + this.inFileName);
             }
         }
-        catch (Exception e) {
-            System.out.println("E011. Unknown output file charset: " + charset);
+        catch (IOException e) {
+            System.out.println("E021. Error opening XLS file: " + this.inFileName);
         }
         return result;
-    }
-
-    void close() {
-        try {
-            if (book != null) {
-                book.close();
-            }
-            if (nBook != null) {
-                nBook.close();
-            }
-        }
-        catch (Exception e) {
-            System.out.println("E003. Error when closing input file: " + inFileName);
-        }
-        try {
-            if (writer != null) {
-                writer.flush();
-                writer.close();
-            }
-        }
-        catch (Exception e) {
-            System.out.println("E004. Error when closing output file: " + outFileName);
-        }
     }
 
     static String getStrNumber(HSSFCell cell) { // Returns string with decimal value 0.00 from String or Numeric cell

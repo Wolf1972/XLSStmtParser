@@ -69,11 +69,8 @@ public class Main {
         if (stmtType.isEmpty() || stmtType.equals("1")) {
             AParser stmtParser = ParserFactory.getParser(StatementType.BTB);
             if (stmtParser != null) {
-                if (stmtParser.open(inFileName, XLSType.XLS, outFileName, codePage)) {
-                    if (stmtParser.check()) {
-                        stmtParser.parse();
-                        stmtParser.close();
-                    }
+                if (stmtParser.process(inFileName, XLSType.XLS, outFileName, codePage)) {
+
                 }
             }
         }
