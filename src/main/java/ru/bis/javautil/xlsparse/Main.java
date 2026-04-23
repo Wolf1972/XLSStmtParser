@@ -2,7 +2,7 @@ package ru.bis.javautil.xlsparse;
 
 import org.apache.commons.cli.*;
 
-public class Main 
+public class Main {
 
     // TODO: assign tmp name to the file that will be imported 
     // TODO: assign tmp name to the file that will be created, assign target name in the end
