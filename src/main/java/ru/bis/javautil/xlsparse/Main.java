@@ -4,8 +4,10 @@ import org.apache.commons.cli.*;
 
 public class Main {
 
-    // TODO: assign tmp name to the file that will be imported 
-    // TODO: assign tmp name to the file that will be created, assign target name in the end
+    // TODO: XLS file type switch
+    // TODO: behaviour when error switch
+    // TODO: group of files processing
+
     public static void main(String[] args) {
         System.out.println("XLS Statement parser.");
         Util.init();
@@ -19,16 +21,8 @@ public class Main {
         String stmtType = "1";     // Statement type
         String codePage = "UTF-8"; // Code page
 
-        Options options = new Options();
-        options.addRequiredOption("i", "input", true, "Input PDF file, required");
-        options.addRequiredOption("o", "output", true, "Output CSV file, required");
-        options.addOption("s", "stmt-type", true, "Statement type (1 - BTB Bank), 1 by default");
-        options.addOption("l", "line-separator", true, "Line separator (\"n\" or \"rn\"), system separator by default");
-        options.addOption("f", "field-separator", true, "Field separator, \";\" by default");
-        options.addOption("d", "decimal-separator", true, "Decimal separator, \".\" or \",\", system separator by default");
-        options.addOption("c", "codepage", true, "Output file in specified code page, default UTF-8");
-
         CommandLineParser parser = new DefaultParser();
+        Options options = makeCmdOptions();
         try {
             CommandLine command = parser.parse(options, args);
 
@@ -73,9 +67,21 @@ public class Main {
             AParser stmtParser = ParserFactory.getParser(StatementType.BTB);
             if (stmtParser != null) {
                 if (stmtParser.process(inFileName, XLSType.XLS, outFileName, codePage)) {
-
+                    System.out.println("Input statement file " + inFileName + " was processed successful. Output file: " + outFileName);
                 }
             }
         }
+    }
+
+    static Options makeCmdOptions() {
+        Options options = new Options();
+        options.addRequiredOption("i", "input", true, "Input PDF file, required");
+        options.addRequiredOption("o", "output", true, "Output CSV file, required");
+        options.addOption("s", "stmt-type", true, "Statement type (1 - BTB Bank), 1 by default");
+        options.addOption("l", "line-separator", true, "Line separator (\"n\" or \"rn\"), system separator by default");
+        options.addOption("f", "field-separator", true, "Field separator, \";\" by default");
+        options.addOption("d", "decimal-separator", true, "Decimal separator, \".\" or \",\", system separator by default");
+        options.addOption("c", "codepage", true, "Output file in specified code page, default UTF-8");
+        return options;
     }
 }
