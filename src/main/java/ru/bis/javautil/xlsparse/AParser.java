@@ -1,6 +1,5 @@
 package ru.bis.javautil.xlsparse;
 
-import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
@@ -91,7 +90,7 @@ abstract public class AParser {
                                 result = false;
                             }
                             if (!tmpOut.renameTo(out)) {
-                                System.out.println("E025. Error renaming input file " + tmpOutFileName + " to " + outFileName);
+                                System.out.println("E025. Error renaming output file " + tmpOutFileName + " to " + outFileName);
                                 result = false;
                             }
                         }
@@ -119,35 +118,88 @@ abstract public class AParser {
         }
         finally {
             if (tmpIn.exists()) {
-                if (!tmpIn.delete()) {
-                    System.out.println("E029. Error deleting temporary file: " + tmpInFileName);
+                if (result) {
+                    if (!tmpIn.delete()) {
+                        System.out.println("E029. Error deleting temporary file: " + tmpInFileName);
+                    }
+                }
+                else { // When error: return the input file with its previous name
+                    if (!tmpIn.renameTo(input)) {
+                        System.out.println("E021. Error renaming input file " + tmpInFileName + " to " + inFileName);
+                    }
                 }
             }
         }
         return result;
     }
 
-    static String getStrNumber(HSSFCell cell) { // Returns string with decimal value 0.00 from String or Numeric cell
-        String str;
+
+    String getCellString(int rowNo, int cellNo) { // Returns string from specified row and cell from any book - XLS or XLSX
+        String result = "";
         try {
-            str = cell.getStringCellValue();
+            if (nSheet != null) {
+                result = nSheet.getRow(rowNo).getCell(cellNo).getStringCellValue();
+            } else if (sheet != null) {
+                result = sheet.getRow(rowNo).getCell(cellNo).getStringCellValue();
+            }
+        }
+        catch (Exception e) {
+            System.out.println("E030. Can't get value for cell " + (rowNo + 1) + ":" + (cellNo));
+        }
+        return result;
+    }
+
+    String getCellNumber(int rowNo, int cellNo) { // Returns string with decimal value like "0.00" from String or Numeric cell
+        String str = "";
+        try {
+            if (nSheet != null) {
+                str = nSheet.getRow(rowNo).getCell(cellNo).getStringCellValue();
+            }
+            else if (sheet != null) {
+                str = sheet.getRow(rowNo).getCell(cellNo).getStringCellValue();
+            }
         }
         catch (Exception e) { // May be numeric cell
-            double dec = cell.getNumericCellValue();
-            str = new DecimalFormat("#0.00").format(dec);
+            double dec = 0;
+            try {
+                if (nSheet != null) {
+                    dec = nSheet.getRow(rowNo).getCell(cellNo).getNumericCellValue();
+                } else if (sheet != null) {
+                    dec = sheet.getRow(rowNo).getCell(cellNo).getNumericCellValue();
+                }
+                str = new DecimalFormat("#0.00").format(dec);
+            }
+            catch (Exception x) {
+                System.out.println("E031. Can't get decimal value for cell " + (rowNo + 1) + ":" + (cellNo));
+            }
         }
         return str;
     }
 
-    static String getStrDate(HSSFCell cell) { // Returns string with date value "DD.MM.YYYY" from String or Date cell
-        String str;
+    String getCellDate(int rowNo, int cellNo) { // Returns string with date value "DD.MM.YYYY" from String or Date cell
+        String str = "";
         try {
-            str = cell.getStringCellValue();
+            if (nSheet != null) {
+                str = nSheet.getRow(rowNo).getCell(cellNo).getStringCellValue();
+            }
+            else if (sheet != null) {
+                str = sheet.getRow(rowNo).getCell(cellNo).getStringCellValue();
+            }
         }
         catch (Exception e) { // May be date cell
-            Date date = cell.getDateCellValue();
-            LocalDate localDate = LocalDate.ofInstant(date.toInstant(), ZoneId.systemDefault());
-            str = localDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+            Date date = new Date();
+            try {
+                if (nSheet != null) {
+                    date = nSheet.getRow(rowNo).getCell(cellNo).getDateCellValue();
+                } else if (sheet != null) {
+                    date = sheet.getRow(rowNo).getCell(cellNo).getDateCellValue();
+                }
+                LocalDate localDate = LocalDate.ofInstant(date.toInstant(), ZoneId.systemDefault());
+                str = localDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+            }
+            catch (Exception x) {
+                System.out.println("E032. Can't get date value for cell " + (rowNo + 1) + ":" + (cellNo));
+            }
         }
         return str;
     }

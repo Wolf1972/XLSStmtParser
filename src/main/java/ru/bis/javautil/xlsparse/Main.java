@@ -4,8 +4,8 @@ import org.apache.commons.cli.*;
 
 public class Main {
 
-    // TODO: XLS file type switch
-    // TODO: behaviour when error switch
+    // TODO: output date format parameter
+    // TODO: "behaviour when error" switch
     // TODO: group of files processing
 
     public static void main(String[] args) {
@@ -17,9 +17,11 @@ public class Main {
         String lineSeparatorCommand = "";
         String fieldSeparatorCommand = "";
         String decimalSeparatorCommand = "";
+        String xlsTypeStr = "0";
 
         String stmtType = "1";     // Statement type
         String codePage = "UTF-8"; // Code page
+        XLSType xlsType = XLSType.XLS; // Old XLS format by default
 
         CommandLineParser parser = new DefaultParser();
         Options options = makeCmdOptions();
@@ -33,6 +35,7 @@ public class Main {
             if (command.hasOption('f')) fieldSeparatorCommand = command.getOptionValue('f');
             if (command.hasOption('d')) decimalSeparatorCommand = command.getOptionValue('d');
             if (command.hasOption('c')) codePage = command.getOptionValue('c');
+            if (command.hasOption('x')) xlsTypeStr = command.getOptionValue('x');
         }
         catch (ParseException e) {
             System.out.println("E000. Invalid command line.");
@@ -48,6 +51,10 @@ public class Main {
                 if (lineSeparatorCommand.charAt(1) == 'r') Util.lSep += "\r";
                 else if (lineSeparatorCommand.charAt(1) == 'n') Util.lSep += "\n";
             }
+        }
+
+        if (!"0".equals(xlsTypeStr)) {
+            xlsType = XLSType.XLSX;
         }
 
         if (!fieldSeparatorCommand.isEmpty()) {
@@ -66,7 +73,7 @@ public class Main {
         if (stmtType.isEmpty() || stmtType.equals("1")) {
             AParser stmtParser = ParserFactory.getParser(StatementType.BTB);
             if (stmtParser != null) {
-                if (stmtParser.process(inFileName, XLSType.XLS, outFileName, codePage)) {
+                if (stmtParser.process(inFileName, xlsType, outFileName, codePage)) {
                     System.out.println("Input statement file " + inFileName + " was processed successful. Output file: " + outFileName);
                 }
             }
@@ -82,6 +89,7 @@ public class Main {
         options.addOption("f", "field-separator", true, "Field separator, \";\" by default");
         options.addOption("d", "decimal-separator", true, "Decimal separator, \".\" or \",\", system separator by default");
         options.addOption("c", "codepage", true, "Output file in specified code page, default UTF-8");
+        options.addOption("x", "xls-type", true, "XLS file type (0 - XLS, 1 - XLSX), 0 by default");
         return options;
     }
 }

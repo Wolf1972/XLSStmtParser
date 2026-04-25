@@ -1,7 +1,5 @@
 package ru.bis.javautil.xlsparse;
 
-import org.apache.poi.hssf.usermodel.HSSFRow;
-
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
@@ -11,8 +9,7 @@ import java.util.Properties;
 
 public class BTBParser extends AParser {
 
-    static DateTimeFormatter formatterDt = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-
+    private String dateFormat = "dd.MM.yyyy";
     private int lastHeaderRow = 9; // Last table header row, minimum rows in statement
     private int trailerRows = 6; // Trailer rows count
     private int firstColumn = 2; // First column number
@@ -33,6 +30,8 @@ public class BTBParser extends AParser {
     private int crAmountColumn = 14; // Credit amount column
     private int purposeColumn = 16; // Purpose column
 
+    DateTimeFormatter formatterDt = DateTimeFormatter.ofPattern(dateFormat);
+
     void init() { // Override markup parameters
         Properties props = new Properties();
         String iniFileName = "btb.ini";
@@ -42,7 +41,7 @@ public class BTBParser extends AParser {
             lastHeaderRow = Integer.parseInt(props.getProperty("lastHeaderRow", String.valueOf(lastHeaderRow))); // Last table header row, minimum rows in statement
             trailerRows = Integer.parseInt(props.getProperty("trailerRows", String.valueOf(trailerRows))); // Trailer rows count
             firstColumn = Integer.parseInt(props.getProperty("firstColumn", String.valueOf(firstColumn))); // First column number
-            firstColumnName = props.getProperty("firstColumnName", "Датасоздания"); // Name is used for format check
+            firstColumnName = props.getProperty("firstColumnName", firstColumnName); // Name is used for format check
             accountRow = Integer.parseInt(props.getProperty("accountRow", String.valueOf(accountRow))); // Row with account number
             accountColumn = Integer.parseInt(props.getProperty("accountColumn", String.valueOf(accountColumn))); // Column with account number
 
@@ -58,6 +57,9 @@ public class BTBParser extends AParser {
             crAmountColumn = Integer.parseInt(props.getProperty("crAmountColumn", String.valueOf(crAmountColumn))); // Credit amount column
             purposeColumn = Integer.parseInt(props.getProperty("purposeColumn", String.valueOf(purposeColumn))); // Purpose column
             opNumColumn = Integer.parseInt(props.getProperty("opNumColumn", String.valueOf(opNumColumn))); // Operation number column
+
+            dateFormat = props.getProperty("dateFormat", dateFormat);
+            formatterDt = DateTimeFormatter.ofPattern(dateFormat);
         }
         catch (Exception e) {
             System.out.println("E013. Error reading parse parameters from file: " + iniFileName + " : " + e.getMessage());
@@ -68,10 +70,12 @@ public class BTBParser extends AParser {
         boolean isValid = true;
         init();
         try {
-            int maxRow = sheet.getLastRowNum();
+            int maxRow = sheet == null ? nSheet.getLastRowNum() : sheet.getLastRowNum();
 
             if (maxRow >= lastHeaderRow) {
-                String firstRow = sheet.getRow(lastHeaderRow).getCell(firstColumn).getStringCellValue();
+                String firstRow = sheet == null ?
+                        nSheet.getRow(lastHeaderRow).getCell(firstColumn).getStringCellValue() :
+                        sheet.getRow(lastHeaderRow).getCell(firstColumn).getStringCellValue();
                 if (!firstColumnName.equals(firstRow.replace("\n","").replace("\r", ""))) {
                     throw new StatementFormatError("Unknown header row: " + firstRow + " <> " + firstColumnName);
                 }
@@ -98,9 +102,12 @@ public class BTBParser extends AParser {
         int line = 0;
 
         try {
-            int maxRow = sheet.getLastRowNum();
 
-            acctNumber = sheet.getRow(accountRow).getCell(accountColumn).getStringCellValue();
+            int maxRow = sheet == null? nSheet.getLastRowNum() : sheet.getLastRowNum();
+
+            acctNumber = sheet == null?
+                    nSheet.getRow(accountRow).getCell(accountColumn).getStringCellValue() :
+                    sheet.getRow(accountRow).getCell(accountColumn).getStringCellValue();
             System.out.println("Statement for account: " + acctNumber);
 
             for (int rowNum = lastHeaderRow + 1; rowNum < maxRow - trailerRows; rowNum++) {
@@ -108,38 +115,36 @@ public class BTBParser extends AParser {
                 line++;
 
                 try {
-                    HSSFRow row = sheet.getRow(rowNum);
-
                     Operation op = new Operation();
 
                     op.id = Integer.toString(line);
-                    op.opNum = row.getCell(opNumColumn).getStringCellValue();
 
-                    String opDateStr = getStrDate(row.getCell(opDateColumn));
+                    op.opNum = getCellString(rowNum, opNumColumn);
+                    String opDateStr = getCellDate(rowNum, opDateColumn);
                     try {
                         op.opDate = LocalDate.parse(opDateStr, formatterDt);
                     } catch (DateTimeException e) {
                         System.out.println("E105. Date format error: " + opDateStr + ", line:" + line);
                     }
 
-                    op.ctrPartAccount = row.getCell(ctrPartAccountColumn).getStringCellValue();
-                    op.ctrPartName = Util.cleanStr(row.getCell(ctrPartNameColumn).getStringCellValue());
+                    op.ctrPartAccount = getCellString(rowNum, ctrPartAccountColumn);
+                    op.ctrPartName = Util.cleanStr(getCellString(rowNum, ctrPartNameColumn));
 
-                    String dtAmountStr = getStrNumber(row.getCell(dtAmountColumn));
+                    String dtAmountStr = getCellNumber(rowNum, dtAmountColumn);
                     try {
                         op.dtAmount = Util.str2long(dtAmountStr);
                     } catch (NumberFormatException e) {
                         System.out.println("E106. Debit amount format error: " + dtAmountStr + ", line:" + line);
                     }
 
-                    String crAmountStr = getStrNumber(row.getCell(crAmountColumn));
+                    String crAmountStr = getCellNumber(rowNum, crAmountColumn);
                     try {
                         op.crAmount = Util.str2long(crAmountStr);
                     } catch (NumberFormatException e) {
                         System.out.println("E107. Credit amount format error: " + crAmountStr + ", line:" + line);
                     }
 
-                    op.purpose = Util.cleanStr(row.getCell(purposeColumn).getStringCellValue());
+                    op.purpose = Util.cleanStr(getCellString(rowNum, purposeColumn));
 
                     dtCalcTurnover += op.dtAmount;
                     crCalcTurnover += op.crAmount;
@@ -159,9 +164,9 @@ public class BTBParser extends AParser {
                 }
             }
 
-            String dtTurnoverStr = getStrNumber(sheet.getRow(maxRow - dtTurnoverRowDistance).getCell(turnoverColumn));
-            String crTurnoverStr = getStrNumber(sheet.getRow(maxRow - crTurnoverRowDistance).getCell(turnoverColumn));
-            String outRestStr = getStrNumber(sheet.getRow(maxRow - restRowDistance).getCell(turnoverColumn));
+            String dtTurnoverStr = getCellNumber(maxRow - dtTurnoverRowDistance, turnoverColumn);
+            String crTurnoverStr = getCellNumber(maxRow - crTurnoverRowDistance, turnoverColumn);
+            String outRestStr = getCellNumber(maxRow - restRowDistance, turnoverColumn);
 
             long dtStmtTurnover = Util.str2long(dtTurnoverStr);
             if (dtStmtTurnover != dtCalcTurnover) {
