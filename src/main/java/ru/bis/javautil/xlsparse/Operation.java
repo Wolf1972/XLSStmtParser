@@ -4,7 +4,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 public class Operation {
-    static DateTimeFormatter formatterDt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    static DateTimeFormatter formatterDt = DateTimeFormatter.ofPattern(Util.outDateFormat);
 
     String id; // Operation id (statement line number)
     String opNum; // Operation number
@@ -16,7 +16,7 @@ public class Operation {
     String purpose; // Purpose
 
     String getCSVString() {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         sb.append(id); sb.append(Util.fSep);
         sb.append("\""); sb.append(opNum); sb.append("\""); sb.append(Util.fSep);
         sb.append(opDate.format(formatterDt)); sb.append(Util.fSep);

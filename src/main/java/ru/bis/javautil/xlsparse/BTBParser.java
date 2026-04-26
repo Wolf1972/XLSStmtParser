@@ -73,10 +73,8 @@ public class BTBParser extends AParser {
             int maxRow = sheet == null ? nSheet.getLastRowNum() : sheet.getLastRowNum();
 
             if (maxRow >= lastHeaderRow) {
-                String firstRow = sheet == null ?
-                        nSheet.getRow(lastHeaderRow).getCell(firstColumn).getStringCellValue() :
-                        sheet.getRow(lastHeaderRow).getCell(firstColumn).getStringCellValue();
-                if (!firstColumnName.equals(firstRow.replace("\n","").replace("\r", ""))) {
+                String firstRow = Util.cleanStr(getCellString(lastHeaderRow, firstColumn));
+                if (!firstColumnName.equals(firstRow)) {
                     throw new StatementFormatError("Unknown header row: " + firstRow + " <> " + firstColumnName);
                 }
             }
@@ -92,8 +90,9 @@ public class BTBParser extends AParser {
     }
 
     @Override
-    int parse() {
+    boolean parse(boolean failWhenError) {
 
+        boolean result = true;
         String acctNumber;
 
         long dtCalcTurnover = 0;
@@ -105,9 +104,7 @@ public class BTBParser extends AParser {
 
             int maxRow = sheet == null? nSheet.getLastRowNum() : sheet.getLastRowNum();
 
-            acctNumber = sheet == null?
-                    nSheet.getRow(accountRow).getCell(accountColumn).getStringCellValue() :
-                    sheet.getRow(accountRow).getCell(accountColumn).getStringCellValue();
+            acctNumber = getCellString(accountRow, accountColumn);
             System.out.println("Statement for account: " + acctNumber);
 
             for (int rowNum = lastHeaderRow + 1; rowNum < maxRow - trailerRows; rowNum++) {
@@ -124,7 +121,14 @@ public class BTBParser extends AParser {
                     try {
                         op.opDate = LocalDate.parse(opDateStr, formatterDt);
                     } catch (DateTimeException e) {
-                        System.out.println("E105. Date format error: " + opDateStr + ", line:" + line);
+                        String error = "E105. Date format error: " + opDateStr + ", line:" + line;
+                        result = false;
+                        if (failWhenError) {
+                            throw new StatementFormatError(error);
+                        }
+                        else {
+                            System.out.println(error);
+                        }
                     }
 
                     op.ctrPartAccount = getCellString(rowNum, ctrPartAccountColumn);
@@ -134,14 +138,26 @@ public class BTBParser extends AParser {
                     try {
                         op.dtAmount = Util.str2long(dtAmountStr);
                     } catch (NumberFormatException e) {
-                        System.out.println("E106. Debit amount format error: " + dtAmountStr + ", line:" + line);
+                        String error = "E106. Debit amount format error: " + dtAmountStr + ", line:" + line;
+                        if (failWhenError) {
+                            throw new StatementFormatError(error);
+                        }
+                        else {
+                            System.out.println(error);
+                        }
                     }
 
                     String crAmountStr = getCellNumber(rowNum, crAmountColumn);
                     try {
                         op.crAmount = Util.str2long(crAmountStr);
                     } catch (NumberFormatException e) {
-                        System.out.println("E107. Credit amount format error: " + crAmountStr + ", line:" + line);
+                        String error = "E107. Credit amount format error: " + crAmountStr + ", line:" + line;
+                        if (failWhenError) {
+                            throw new StatementFormatError(error);
+                        }
+                        else {
+                            System.out.println(error);
+                        }
                     }
 
                     op.purpose = Util.cleanStr(getCellString(rowNum, purposeColumn));
@@ -155,14 +171,32 @@ public class BTBParser extends AParser {
                         writer.write(Util.lSep);
                     }
                     catch (IOException e) {
-                        System.out.println("E108. CSV file output error: " + e.getMessage());
+                        String error = "E108. CSV file output error: " + e.getMessage();
+                        if (failWhenError) {
+                            result = false;
+                            System.out.println(error);
+                            break;
+                        }
+                        else {
+                            System.out.println(error);
+                        }
                     }
 
                 }
                 catch (Exception e) {
-                    System.out.println("E110. Line " + line + " parsing error: " + e.getMessage());
+                    String error = "E110. Line " + line + " parsing error: " + e.getMessage();
+                    if (failWhenError) {
+                        result = false;
+                        System.out.println(error);
+                        break;
+                    }
+                    else {
+                        System.out.println(error);
+                    }
                 }
             }
+
+            System.out.println("Done. " + line + " operation(s) created.");
 
             String dtTurnoverStr = getCellNumber(maxRow - dtTurnoverRowDistance, turnoverColumn);
             String crTurnoverStr = getCellNumber(maxRow - crTurnoverRowDistance, turnoverColumn);
@@ -172,6 +206,9 @@ public class BTBParser extends AParser {
             if (dtStmtTurnover != dtCalcTurnover) {
                 System.out.println("E102. Debit turnover mismatch. Specified: " + Util.long2str(dtStmtTurnover) +
                                                                ", calculated: " + Util.long2str(dtCalcTurnover));
+                if (failWhenError) {
+                    result = false;
+                }
             }
             else {
                 System.out.println("Debit turnover: " + Util.long2str(dtStmtTurnover));
@@ -181,18 +218,28 @@ public class BTBParser extends AParser {
             if (crStmtTurnover != crCalcTurnover) {
                 System.out.println("E103. Credit turnover mismatch. Specified: " + Util.long2str(crStmtTurnover) +
                                                                 ", calculated: " + Util.long2str(crCalcTurnover));
+                if (failWhenError) {
+                    result = false;
+                }
             } else {
                 System.out.println("Credit turnover: " + Util.long2str(crStmtTurnover));
             }
+
             long outRest = Util.str2long(outRestStr);
             System.out.println("Outgoing rest: " + Util.long2str(outRest));
         }
         catch (StatementFormatError e) {
             System.out.println("E101. Statement format error. " + e.getMessage());
+            if (failWhenError) {
+                result = false;
+            }
         }
         catch (Exception e) {
             System.out.println("E100. Error: " + e.getMessage());
+            if (failWhenError) {
+                result = false;
+            }
         }
-        return line;
+        return result;
     }
 }

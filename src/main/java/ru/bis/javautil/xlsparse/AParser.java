@@ -11,6 +11,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
@@ -28,11 +29,21 @@ abstract public class AParser {
     boolean check() { // Check statement for expected format
         return true;
     }
-    int parse() { // Parse all statement and create CSV
-        return 0;
+    boolean parse(boolean failWhenError) { // Parse all statement and create CSV
+        return true;
     }
 
-    boolean process(String inFileName, XLSType type, String outFileName, String charset) {
+    /**
+     * Main method to parse statement
+     * @param inFileName - input file name
+     * @param type - XLS or XLSX
+     * @param outFileName - output file name
+     * @param charset - charset
+     * @param errorHandling - which errors will fail operation: 0 - all errors, 1 - only checked format errors, 2 - no errors checking
+     * @param arcDirectory - directory to move successful statement file (when empty - statement will just be deleted)
+     * @return true when operation success, false when operation fails.
+     */
+    boolean process(String inFileName, XLSType type, String outFileName, String charset, int errorHandling, String arcDirectory) {
         boolean result = false;
         Charset chs;
 
@@ -41,6 +52,9 @@ abstract public class AParser {
 
         File input = new File(inFileName);
         File tmpIn = new File(tmpInFileName);
+        File tmpOut = new File(tmpOutFileName);
+        File out = new File(outFileName);
+
         if (!input.exists()) {
             System.out.println("E020. Input file is not found: " + inFileName);
             return false;
@@ -67,32 +81,29 @@ abstract public class AParser {
                     System.out.println("E022. Unknown output file charset: " + charset);
                     chs = StandardCharsets.UTF_8; // Error, use charset by default
                 }
-                try (FileOutputStream out = new FileOutputStream(tmpOutFileName);
-                     OutputStreamWriter outwr = new OutputStreamWriter(out, chs);
-                     BufferedWriter writer = new BufferedWriter(outwr)) { // Try for output
+                try (FileOutputStream fileOut = new FileOutputStream(tmpOutFileName);
+                     OutputStreamWriter outWr = new OutputStreamWriter(fileOut, chs);
+                     BufferedWriter writer = new BufferedWriter(outWr)) { // Try for output
                     this.writer = writer;
-                    if (check()) {
-                        int lines = parse();
-                        System.out.println("Done. " + lines + " operation(s) created.");
+                    if (check() || errorHandling >= 2) {
+                        result = parse(errorHandling < 2);
                     }
-                    result = true;
                 }
                 catch (Exception e) {
                     System.out.println("E023. Error opening output file: " + outFileName + " : " + e.getMessage());
                 }
                 finally {
-                    File tmpOut = new File(tmpOutFileName);
+
                     if (tmpOut.exists()) {
-                        File out = new File(outFileName);
                         if (out.exists()) { // Remove old output file
                             if (!out.delete()) {
                                 System.out.println("E024. Can't delete old output file: " + outFileName);
                                 result = false;
                             }
-                            if (!tmpOut.renameTo(out)) {
-                                System.out.println("E025. Error renaming output file " + tmpOutFileName + " to " + outFileName);
-                                result = false;
-                            }
+                        }
+                        if (!tmpOut.renameTo(out)) {
+                            System.out.println("E025. Error renaming output file " + tmpOutFileName + " to " + outFileName);
+                            result = false;
                         }
                     }
                     try {
@@ -119,13 +130,32 @@ abstract public class AParser {
         finally {
             if (tmpIn.exists()) {
                 if (result) {
-                    if (!tmpIn.delete()) {
+                    if (!arcDirectory.isEmpty()) { // Is archive need?
+                        LocalDateTime now = LocalDateTime.now();
+                        String timeStamp = now.format(DateTimeFormatter.ofPattern("yyMMyy_HHmmss"));
+                        String arcFileName = arcDirectory + timeStamp + "_" + inFileName;
+                        File arc = new File(arcFileName);
+                        if (arc.exists()) {
+                            System.out.println("E018. Archive file already exists: " + arcFileName);
+                        }
+                        else {
+                            if (!tmpIn.renameTo(arc)) {
+                                System.out.println("E019. Can't create archive file  " + arcFileName);
+                            }
+                        }
+                    }
+                    else if (!tmpIn.delete()) { // Delete statement file
                         System.out.println("E029. Error deleting temporary file: " + tmpInFileName);
                     }
                 }
                 else { // When error: return the input file with its previous name
                     if (!tmpIn.renameTo(input)) {
                         System.out.println("E021. Error renaming input file " + tmpInFileName + " to " + inFileName);
+                    }
+                    if (out.exists()) {
+                        if (!out.delete()) {
+                            System.out.println("E024. Can't delete output file with error: " + outFileName);
+                        }
                     }
                 }
             }

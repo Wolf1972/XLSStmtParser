@@ -1,5 +1,6 @@
 package ru.bis.javautil.xlsparse;
 
+import java.io.File;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.stream.Stream;
@@ -8,6 +9,8 @@ public class Util {
     static String lSep; // line separator
     static String dSep; // decimal separator
     static String fSep; // field separator
+    static String fileSep; // file separator
+    static String outDateFormat;
 
     static final String nbsp = "\u00A0";
 
@@ -24,6 +27,9 @@ public class Util {
         System.out.println();
 
         fSep = ";";
+
+        fileSep = File.separator;
+        System.out.println("File path separator: " + fileSep);
     }
 
     static String long2str(long amount) { // Converts long value to string with 2 digital digits separated
