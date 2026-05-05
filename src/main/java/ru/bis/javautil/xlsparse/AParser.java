@@ -11,7 +11,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
@@ -39,11 +38,11 @@ abstract public class AParser {
      * @param type - XLS or XLSX
      * @param outFileName - output file name
      * @param charset - charset
-     * @param errorHandling - which errors will fail operation: 0 - all errors, 1 - only checked format errors, 2 - no errors checking
-     * @param arcDirectory - directory to move successful statement file (when empty - statement will just be deleted)
-     * @return true when operation success, false when operation fails.
+     * @param errorHandling - which errors will fail the operation: 0 - all errors, 1 - only checked format errors, 2 - no errors checking
+     * @param arcFileName - archive file name (when empty - processed statement file just will be deleted)
+     * @return true when the operation is successful, false when the operation fails.
      */
-    boolean process(String inFileName, XLSType type, String outFileName, String charset, int errorHandling, String arcDirectory) {
+    boolean process(String inFileName, XLSType type, String outFileName, String charset, int errorHandling, String arcFileName) {
         boolean result = false;
         Charset chs;
 
@@ -62,6 +61,22 @@ abstract public class AParser {
         if (!input.renameTo(tmpIn)) {
             System.out.println("E021. Error renaming input file " + inFileName + " to " + tmpInFileName);
             return false;
+        }
+
+        if (type == XLSType.AUTO) { // Define Excel file format type (XLS or XLSX) - 2 first chars in file
+            try (FileInputStream in = new FileInputStream(tmpInFileName)) {
+                char ch0 = (char) in.read();
+                char ch1 = (char) in.read();
+                if (ch0 == 'P' && ch1 == 'K') { // Zip signature found - new Excel format type (XLSX)
+                    type = XLSType.XLSX;
+                }
+                else {
+                    type = XLSType.XLS;
+                }
+            }
+            catch (IOException e) {
+                System.out.println("E022. Can't define Excel file type.");
+            }
         }
 
         try (FileInputStream in = new FileInputStream(tmpInFileName)) { // Try for input
@@ -130,10 +145,7 @@ abstract public class AParser {
         finally {
             if (tmpIn.exists()) {
                 if (result) {
-                    if (!arcDirectory.isEmpty()) { // Is archive need?
-                        LocalDateTime now = LocalDateTime.now();
-                        String timeStamp = now.format(DateTimeFormatter.ofPattern("yyMMyy_HHmmss"));
-                        String arcFileName = arcDirectory + timeStamp + "_" + inFileName;
+                    if (!arcFileName.isEmpty()) { // Is archive need?
                         File arc = new File(arcFileName);
                         if (arc.exists()) {
                             System.out.println("E018. Archive file already exists: " + arcFileName);
@@ -141,6 +153,7 @@ abstract public class AParser {
                         else {
                             if (!tmpIn.renameTo(arc)) {
                                 System.out.println("E019. Can't create archive file  " + arcFileName);
+                                // We don't need to delete the input file because we couldn't create archive
                             }
                         }
                     }

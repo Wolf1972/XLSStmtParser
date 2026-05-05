@@ -1,9 +1,18 @@
 package ru.bis.javautil.xlsparse;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
+
+import static java.nio.file.Files.isRegularFile;
 
 public class Util {
     static String lSep; // line separator
@@ -60,5 +69,19 @@ public class Util {
        else {
            return str.replace("\"", "\"\"");
        }
+    }
+
+    static String changeFileExtension(String fileName, String ext) { // Changes file extension (e.g. *.xls to *.csv)
+        String result = null;
+        if (fileName != null) {
+            int pos = fileName.lastIndexOf(".");
+            if (pos >= 0) {
+                result = fileName.substring(0, pos) + "." + ext;
+            }
+            else { // There is no "." in file name
+                result = fileName + "." + ext;
+            }
+        }
+        return result;
     }
 }
