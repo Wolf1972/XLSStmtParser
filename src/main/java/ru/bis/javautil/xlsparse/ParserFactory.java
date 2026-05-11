@@ -4,7 +4,7 @@ public class ParserFactory {
     // Static factory for parser
     public static AParser getParser(StatementType type) {
         AParser parser = null;
-        System.out.println("Statement type: " + type.getName());
+        Main.logger.log(System.Logger.Level.INFO,"Statement parser: " + type.getName());
         if (type == StatementType.BTB) {
             parser = new BTBParser();
         }

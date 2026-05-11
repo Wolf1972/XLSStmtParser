@@ -1,20 +1,12 @@
 package ru.bis.javautil.xlsparse;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.stream.Stream;
 
-import static java.nio.file.Files.isRegularFile;
-
 public class Util {
+
     static String lSep; // line separator
     static String dSep; // decimal separator
     static String fSep; // field separator
@@ -27,18 +19,19 @@ public class Util {
         DecimalFormat format = (DecimalFormat) DecimalFormat.getInstance();
         DecimalFormatSymbols symbols = format.getDecimalFormatSymbols();
         dSep = String.valueOf(symbols.getDecimalSeparator());
-        System.out.println("System decimal separator: " + dSep);
+        Main.logger.log(System.Logger.Level.INFO, "System decimal separator: " + dSep);
 
         lSep = System.lineSeparator();
-        System.out.print("System line separator: ");
-        Stream<Character> sch = lSep.chars().mapToObj(i -> (char)i);
-        sch.forEach(ch -> System.out.printf("#%d ", (int) ch));
-        System.out.println();
+        String lineSepStr = "";
+        for (int i = 0; i < lSep.length(); i++) {
+            lineSepStr += " 0x" + String.format("%04x", (int) lSep.charAt(i));
+        }
+        Main.logger.log(System.Logger.Level.INFO,"System line separator:" + lineSepStr);
 
         fSep = ";";
 
         fileSep = File.separator;
-        System.out.println("File path separator: " + fileSep);
+        Main.logger.log(System.Logger.Level.INFO,"File path separator: " + fileSep);
     }
 
     static String long2str(long amount) { // Converts long value to string with 2 digital digits separated

@@ -62,7 +62,7 @@ public class BTBParser extends AParser {
             formatterDt = DateTimeFormatter.ofPattern(dateFormat);
         }
         catch (Exception e) {
-            System.out.println("E013. Error reading parse parameters from file: " + iniFileName + " : " + e.getMessage());
+            Main.logger.log(System.Logger.Level.ERROR,"E100. Error reading parse parameters from file: " + iniFileName + " : " + e.getMessage());
         }
     }
 
@@ -83,14 +83,14 @@ public class BTBParser extends AParser {
             }
         }
         catch (StatementFormatError e) {
-            System.out.println("E101. Statement format error. " + e.getMessage());
+            Main.logger.log(System.Logger.Level.ERROR,"E101. Statement format error. " + e.getMessage());
             isValid = false;
         }
         return isValid;
     }
 
     @Override
-    boolean parse(boolean failWhenError) {
+    boolean parse(ErrHandleStrategy errHandleStrategy) {
 
         boolean result = true;
         String acctNumber;
@@ -105,7 +105,7 @@ public class BTBParser extends AParser {
             int maxRow = sheet == null? nSheet.getLastRowNum() : sheet.getLastRowNum();
 
             acctNumber = getCellString(accountRow, accountColumn);
-            System.out.println("Statement for account: " + acctNumber);
+            Main.logger.log(System.Logger.Level.ERROR,"Statement for account: " + acctNumber);
 
             for (int rowNum = lastHeaderRow + 1; rowNum < maxRow - trailerRows; rowNum++) {
 
@@ -121,13 +121,13 @@ public class BTBParser extends AParser {
                     try {
                         op.opDate = LocalDate.parse(opDateStr, formatterDt);
                     } catch (DateTimeException e) {
-                        String error = "E105. Date format error: " + opDateStr + ", line:" + line;
+                        String error = "E102. Date format error: " + opDateStr + ", line:" + line;
                         result = false;
-                        if (failWhenError) {
+                        if (errHandleStrategy != ErrHandleStrategy.NONE) {
                             throw new StatementFormatError(error);
                         }
                         else {
-                            System.out.println(error);
+                            Main.logger.log(System.Logger.Level.ERROR, error);
                         }
                     }
 
@@ -138,12 +138,12 @@ public class BTBParser extends AParser {
                     try {
                         op.dtAmount = Util.str2long(dtAmountStr);
                     } catch (NumberFormatException e) {
-                        String error = "E106. Debit amount format error: " + dtAmountStr + ", line:" + line;
-                        if (failWhenError) {
+                        String error = "E103. Debit amount format error: " + dtAmountStr + ", line:" + line;
+                        if (errHandleStrategy != ErrHandleStrategy.NONE) {
                             throw new StatementFormatError(error);
                         }
                         else {
-                            System.out.println(error);
+                            Main.logger.log(System.Logger.Level.ERROR,error);
                         }
                     }
 
@@ -151,12 +151,12 @@ public class BTBParser extends AParser {
                     try {
                         op.crAmount = Util.str2long(crAmountStr);
                     } catch (NumberFormatException e) {
-                        String error = "E107. Credit amount format error: " + crAmountStr + ", line:" + line;
-                        if (failWhenError) {
+                        String error = "E104. Credit amount format error: " + crAmountStr + ", line:" + line;
+                        if (errHandleStrategy != ErrHandleStrategy.NONE) {
                             throw new StatementFormatError(error);
                         }
                         else {
-                            System.out.println(error);
+                            Main.logger.log(System.Logger.Level.ERROR,error);
                         }
                     }
 
@@ -171,32 +171,25 @@ public class BTBParser extends AParser {
                         writer.write(Util.lSep);
                     }
                     catch (IOException e) {
-                        String error = "E108. CSV file output error: " + e.getMessage();
-                        if (failWhenError) {
+                        String error = "E105. CSV file output error: " + e.getMessage();
+                        Main.logger.log(System.Logger.Level.ERROR, error);
+                        if (errHandleStrategy != ErrHandleStrategy.NONE) {
                             result = false;
-                            System.out.println(error);
                             break;
                         }
-                        else {
-                            System.out.println(error);
-                        }
                     }
-
                 }
                 catch (Exception e) {
-                    String error = "E110. Line " + line + " parsing error: " + e.getMessage();
-                    if (failWhenError) {
+                    String error = "E106. Line " + line + " parsing error: " + e.getMessage();
+                    Main.logger.log(System.Logger.Level.ERROR, error);
+                    if (errHandleStrategy != ErrHandleStrategy.NONE) {
                         result = false;
-                        System.out.println(error);
                         break;
-                    }
-                    else {
-                        System.out.println(error);
                     }
                 }
             }
 
-            System.out.println("Done. " + line + " operation(s) created.");
+            Main.logger.log(System.Logger.Level.INFO,"Done. " + line + " operation(s) created.");
 
             String dtTurnoverStr = getCellNumber(maxRow - dtTurnoverRowDistance, turnoverColumn);
             String crTurnoverStr = getCellNumber(maxRow - crTurnoverRowDistance, turnoverColumn);
@@ -204,39 +197,41 @@ public class BTBParser extends AParser {
 
             long dtStmtTurnover = Util.str2long(dtTurnoverStr);
             if (dtStmtTurnover != dtCalcTurnover) {
-                System.out.println("E102. Debit turnover mismatch. Specified: " + Util.long2str(dtStmtTurnover) +
-                                                               ", calculated: " + Util.long2str(dtCalcTurnover));
-                if (failWhenError) {
+                Main.logger.log(System.Logger.Level.ERROR,
+                        "E107. Debit turnover mismatch. Specified: " + Util.long2str(dtStmtTurnover) +
+                                                         ", calculated: " + Util.long2str(dtCalcTurnover));
+                if (errHandleStrategy != ErrHandleStrategy.NONE) {
                     result = false;
                 }
             }
             else {
-                System.out.println("Debit turnover: " + Util.long2str(dtStmtTurnover));
+                Main.logger.log(System.Logger.Level.INFO,"Debit turnover: " + Util.long2str(dtStmtTurnover));
             }
 
             long crStmtTurnover = Util.str2long(crTurnoverStr);
             if (crStmtTurnover != crCalcTurnover) {
-                System.out.println("E103. Credit turnover mismatch. Specified: " + Util.long2str(crStmtTurnover) +
-                                                                ", calculated: " + Util.long2str(crCalcTurnover));
-                if (failWhenError) {
+                Main.logger.log(System.Logger.Level.ERROR,
+                        "E108. Credit turnover mismatch. Specified: " + Util.long2str(crStmtTurnover) +
+                                                          ", calculated: " + Util.long2str(crCalcTurnover));
+                if (errHandleStrategy != ErrHandleStrategy.NONE) {
                     result = false;
                 }
             } else {
-                System.out.println("Credit turnover: " + Util.long2str(crStmtTurnover));
+                Main.logger.log(System.Logger.Level.INFO,"Credit turnover: " + Util.long2str(crStmtTurnover));
             }
 
             long outRest = Util.str2long(outRestStr);
-            System.out.println("Outgoing rest: " + Util.long2str(outRest));
+            Main.logger.log(System.Logger.Level.INFO,"Outgoing rest: " + Util.long2str(outRest));
         }
         catch (StatementFormatError e) {
-            System.out.println("E101. Statement format error. " + e.getMessage());
-            if (failWhenError) {
+            Main.logger.log(System.Logger.Level.ERROR,"E109. Statement format error. " + e.getMessage());
+            if (errHandleStrategy != ErrHandleStrategy.NONE) {
                 result = false;
             }
         }
         catch (Exception e) {
-            System.out.println("E100. Error: " + e.getMessage());
-            if (failWhenError) {
+            Main.logger.log(System.Logger.Level.ERROR,"E110. Error: " + e.getMessage());
+            if (errHandleStrategy != ErrHandleStrategy.NONE) {
                 result = false;
             }
         }

@@ -28,7 +28,7 @@ abstract public class AParser {
     boolean check() { // Check statement for expected format
         return true;
     }
-    boolean parse(boolean failWhenError) { // Parse all statement and create CSV
+    boolean parse(ErrHandleStrategy errHandleStrategy) { // Parse all statement and create CSV
         return true;
     }
 
@@ -38,11 +38,11 @@ abstract public class AParser {
      * @param type - XLS or XLSX
      * @param outFileName - output file name
      * @param charset - charset
-     * @param errorHandling - which errors will fail the operation: 0 - all errors, 1 - only checked format errors, 2 - no errors checking
+     * @param errorHandling - which errors will fail the operation: ALL - all errors, FORMAT - only checked format errors, NONE - no errors checking
      * @param arcFileName - archive file name (when empty - processed statement file just will be deleted)
      * @return true when the operation is successful, false when the operation fails.
      */
-    boolean process(String inFileName, XLSType type, String outFileName, String charset, int errorHandling, String arcFileName) {
+    boolean process(String inFileName, XLSType type, String outFileName, String charset, ErrHandleStrategy errorHandling, String arcFileName) {
         boolean result = false;
         Charset chs;
 
@@ -55,11 +55,11 @@ abstract public class AParser {
         File out = new File(outFileName);
 
         if (!input.exists()) {
-            System.out.println("E020. Input file is not found: " + inFileName);
+            Main.logger.log(System.Logger.Level.ERROR, "E020. Input file is not found: " + inFileName);
             return false;
         }
         if (!input.renameTo(tmpIn)) {
-            System.out.println("E021. Error renaming input file " + inFileName + " to " + tmpInFileName);
+            Main.logger.log(System.Logger.Level.ERROR,"E021. Error renaming input file " + inFileName + " to " + tmpInFileName);
             return false;
         }
 
@@ -75,7 +75,7 @@ abstract public class AParser {
                 }
             }
             catch (IOException e) {
-                System.out.println("E022. Can't define Excel file type.");
+                Main.logger.log(System.Logger.Level.ERROR,"E022. Can't define Excel file type.");
             }
         }
 
@@ -93,31 +93,31 @@ abstract public class AParser {
                     chs = Charset.forName(charset);
                 }
                 catch (Exception e) {
-                    System.out.println("E022. Unknown output file charset: " + charset);
+                    Main.logger.log(System.Logger.Level.ERROR,"E023. Unknown output file charset: " + charset);
                     chs = StandardCharsets.UTF_8; // Error, use charset by default
                 }
                 try (FileOutputStream fileOut = new FileOutputStream(tmpOutFileName);
                      OutputStreamWriter outWr = new OutputStreamWriter(fileOut, chs);
                      BufferedWriter writer = new BufferedWriter(outWr)) { // Try for output
                     this.writer = writer;
-                    if (check() || errorHandling >= 2) {
-                        result = parse(errorHandling < 2);
+                    if (check() || errorHandling == ErrHandleStrategy.NONE) {
+                        result = parse(errorHandling);
                     }
                 }
                 catch (Exception e) {
-                    System.out.println("E023. Error opening output file: " + outFileName + " : " + e.getMessage());
+                    Main.logger.log(System.Logger.Level.ERROR,"E024. Error opening output file: " + outFileName + " : " + e.getMessage());
                 }
                 finally {
 
                     if (tmpOut.exists()) {
                         if (out.exists()) { // Remove old output file
                             if (!out.delete()) {
-                                System.out.println("E024. Can't delete old output file: " + outFileName);
+                                Main.logger.log(System.Logger.Level.ERROR,"E025. Can't delete old output file: " + outFileName);
                                 result = false;
                             }
                         }
                         if (!tmpOut.renameTo(out)) {
-                            System.out.println("E025. Error renaming output file " + tmpOutFileName + " to " + outFileName);
+                            Main.logger.log(System.Logger.Level.ERROR,"E026. Error renaming output file " + tmpOutFileName + " to " + outFileName);
                             result = false;
                         }
                     }
@@ -130,17 +130,17 @@ abstract public class AParser {
                         }
                     }
                     catch (Exception e) {
-                        System.out.println("E026. Error when closing XLS file: " + outFileName);
+                        Main.logger.log(System.Logger.Level.ERROR,"E027. Error when closing XLS file: " + outFileName);
                         result = false;
                     }
                 }
             }
             catch (Exception e) {
-                System.out.println("E027. Error opening XLS file: " + inFileName);
+                Main.logger.log(System.Logger.Level.ERROR,"E028. Error opening XLS file: " + inFileName);
             }
         }
         catch (IOException e) {
-            System.out.println("E028. Error opening XLS file: " + inFileName);
+            Main.logger.log(System.Logger.Level.ERROR,"E029. Error opening XLS file: " + inFileName);
         }
         finally {
             if (tmpIn.exists()) {
@@ -148,26 +148,26 @@ abstract public class AParser {
                     if (!arcFileName.isEmpty()) { // Is archive need?
                         File arc = new File(arcFileName);
                         if (arc.exists()) {
-                            System.out.println("E018. Archive file already exists: " + arcFileName);
+                            Main.logger.log(System.Logger.Level.ERROR,"E030. Archive file already exists: " + arcFileName);
                         }
                         else {
                             if (!tmpIn.renameTo(arc)) {
-                                System.out.println("E019. Can't create archive file  " + arcFileName);
+                                Main.logger.log(System.Logger.Level.ERROR,"E031. Can't create archive file  " + arcFileName);
                                 // We don't need to delete the input file because we couldn't create archive
                             }
                         }
                     }
                     else if (!tmpIn.delete()) { // Delete statement file
-                        System.out.println("E029. Error deleting temporary file: " + tmpInFileName);
+                        Main.logger.log(System.Logger.Level.ERROR,"E032. Error deleting temporary file: " + tmpInFileName);
                     }
                 }
                 else { // When error: return the input file with its previous name
                     if (!tmpIn.renameTo(input)) {
-                        System.out.println("E021. Error renaming input file " + tmpInFileName + " to " + inFileName);
+                        Main.logger.log(System.Logger.Level.ERROR,"E033. Error renaming input file " + tmpInFileName + " to " + inFileName);
                     }
                     if (out.exists()) {
                         if (!out.delete()) {
-                            System.out.println("E024. Can't delete output file with error: " + outFileName);
+                            Main.logger.log(System.Logger.Level.ERROR,"E034. Can't delete output file with error: " + outFileName);
                         }
                     }
                 }
@@ -187,7 +187,7 @@ abstract public class AParser {
             }
         }
         catch (Exception e) {
-            System.out.println("E030. Can't get value for cell " + (rowNo + 1) + ":" + (cellNo));
+            Main.logger.log(System.Logger.Level.ERROR,"E035. Can't get value for cell " + (rowNo + 1) + ":" + (cellNo));
         }
         return result;
     }
@@ -213,7 +213,7 @@ abstract public class AParser {
                 str = new DecimalFormat("#0.00").format(dec);
             }
             catch (Exception x) {
-                System.out.println("E031. Can't get decimal value for cell " + (rowNo + 1) + ":" + (cellNo));
+                Main.logger.log(System.Logger.Level.ERROR,"E036. Can't get decimal value for cell " + (rowNo + 1) + ":" + (cellNo));
             }
         }
         return str;
@@ -241,7 +241,7 @@ abstract public class AParser {
                 str = localDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
             }
             catch (Exception x) {
-                System.out.println("E032. Can't get date value for cell " + (rowNo + 1) + ":" + (cellNo));
+                Main.logger.log(System.Logger.Level.ERROR,"E037. Can't get date value for cell " + (rowNo + 1) + ":" + (cellNo));
             }
         }
         return str;
