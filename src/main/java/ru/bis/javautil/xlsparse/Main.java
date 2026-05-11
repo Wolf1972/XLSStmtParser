@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 import static java.nio.file.Files.isRegularFile;
 
@@ -22,6 +23,15 @@ public class Main {
     public static void main(String[] args) {
 
         logger.log(System.Logger.Level.INFO, "XLS Statement parser.");
+        final Properties properties = new Properties();
+        try {
+            properties.load(Main.class.getClassLoader().getResourceAsStream("project.properties"));
+            final String version = properties.getProperty("version");
+            logger.log(System.Logger.Level.INFO, "Version " + version);
+        }
+        catch (final IOException e) {
+            logger.log(System.Logger.Level.ERROR, "Can't read properties file.", e);
+        }
 
         String inFileName = "stmt.xls";
         String outFileName = "out.csv";
