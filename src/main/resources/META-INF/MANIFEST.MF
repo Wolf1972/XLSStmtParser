@@ -1,0 +1,1 @@
+Main-Class: ru.bis.javautil.xlsparse.Main
