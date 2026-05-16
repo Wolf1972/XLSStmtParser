@@ -14,17 +14,17 @@ public class Operation {
     String ctrPartName; // Counterparty name
     String ctrPartAccount; // Counterparty account
     String purpose; // Purpose
+    String ourAccount; // Our account
 
     String getCSVString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(id); sb.append(Util.fSep);
-        sb.append("\""); sb.append(opNum); sb.append("\""); sb.append(Util.fSep);
-        sb.append(opDate.format(formatterDt)); sb.append(Util.fSep);
-        sb.append(Util.long2str(dtAmount)); sb.append(Util.fSep);
-        sb.append(Util.long2str(crAmount)); sb.append(Util.fSep);
-        sb.append("\""); sb.append(ctrPartAccount); sb.append("\""); sb.append(Util.fSep);
-        sb.append("\""); sb.append(Util.str2CSV(ctrPartName)); sb.append("\""); sb.append(Util.fSep);
-        sb.append("\""); sb.append(Util.str2CSV(purpose)); sb.append("\"");
-        return sb.toString();
+        return id + Util.fSep +
+                "\"" + (opNum == null ? "" : Util.leftStr(opNum, 100)) + "\"" + Util.fSep +
+                (opDate == null ? "" : opDate.format(formatterDt)) + Util.fSep +
+                Util.long2str(dtAmount) + Util.fSep +
+                Util.long2str(crAmount) + Util.fSep +
+                "\"" + (ctrPartAccount == null ? "" : Util.leftStr(ctrPartAccount, 35)) + "\"" + Util.fSep +
+                "\"" + (ctrPartName == null ? "" : Util.str2CSV(Util.leftStr(ctrPartName, 300))) + "\"" + Util.fSep +
+                "\"" + (purpose == null ? "" : Util.str2CSV(Util.leftStr(purpose, 600))) + "\"" + Util.fSep +
+                "\"" + (ourAccount == null ? "" : Util.leftStr(ourAccount, 35)) + "\"";
     }
 }

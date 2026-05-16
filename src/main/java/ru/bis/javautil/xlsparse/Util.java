@@ -3,7 +3,7 @@ package ru.bis.javautil.xlsparse;
 import java.io.File;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
-import java.util.stream.Stream;
+import java.text.MessageFormat;
 
 public class Util {
 
@@ -19,19 +19,19 @@ public class Util {
         DecimalFormat format = (DecimalFormat) DecimalFormat.getInstance();
         DecimalFormatSymbols symbols = format.getDecimalFormatSymbols();
         dSep = String.valueOf(symbols.getDecimalSeparator());
-        Main.logger.log(System.Logger.Level.INFO, "System decimal separator: " + dSep);
+        Main.logr.log(System.Logger.Level.TRACE, "trace.system_decimal_separator", "System decimal separator: {0}", dSep);
 
         lSep = System.lineSeparator();
         String lineSepStr = "";
         for (int i = 0; i < lSep.length(); i++) {
             lineSepStr += " 0x" + String.format("%04x", (int) lSep.charAt(i));
         }
-        Main.logger.log(System.Logger.Level.INFO,"System line separator:" + lineSepStr);
+        Main.logr.log(System.Logger.Level.TRACE,"trace.system_line_separator", "System line separator: {0}",  lineSepStr);
 
         fSep = ";";
 
         fileSep = File.separator;
-        Main.logger.log(System.Logger.Level.INFO,"File path separator: " + fileSep);
+        Main.logr.log(System.Logger.Level.TRACE,"trace.system_path_separator", "System file path separator: {0}", fileSep);
     }
 
     static String long2str(long amount) { // Converts long value to string with 2 digital digits separated
@@ -76,5 +76,25 @@ public class Util {
             }
         }
         return result;
+    }
+
+    static String leftStr(String str, int max) { // Restricts string with some length even if this length more than length of the real string (instead Apache Commons)
+        return str == null ? "" : str.length() > max ? str.substring(0, max) : str;
+    }
+
+    static String resource(String code, String defaultString, Object... args) { // Returns resource string or default string
+        try {
+            String result;
+            if (Main.bundle != null) {
+                result = Main.bundle.getString(code);
+            }
+            else {
+                result = defaultString;
+            }
+            return MessageFormat.format(result, args);
+        }
+        catch (Exception e) {
+            return MessageFormat.format(defaultString, args);
+        }
     }
 }

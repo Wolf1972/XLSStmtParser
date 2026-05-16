@@ -10,38 +10,45 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 import static java.nio.file.Files.isRegularFile;
 
 public class Main {
 
-    static final System.Logger logger = System.getLogger("ru.bis.javautil.xlsparse");
+    static final Logger logr = new Logger(System.Logger.Level.INFO);
+    static Locale locale = Locale.of("ru");
+    static ResourceBundle bundle = null;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) {try {
+            bundle = ResourceBundle.getBundle("strings", locale);
+        }
+        catch (Exception e) {
+            // One message without resources
+            logr.log(System.Logger.Level.WARNING, "E000. Can't load resource file." + e.getMessage());
+        }
 
-        logger.log(System.Logger.Level.INFO, "XLS Statement parser.");
+        logr.log(System.Logger.Level.INFO, Util.resource("info.title", "XLS Statement parser"));
         final Properties properties = new Properties();
         try {
             properties.load(Main.class.getClassLoader().getResourceAsStream("project.properties"));
             final String version = properties.getProperty("version");
-            logger.log(System.Logger.Level.INFO, "Version " + version);
+            logr.log(System.Logger.Level.INFO, "info.ver", "Version {0}", version);
         }
-        catch (final IOException e) {
-            logger.log(System.Logger.Level.ERROR, "Can't read properties file.", e);
+        catch (final Exception e) {
+            logr.log(System.Logger.Level.ERROR, "error.E001", "E001. Can't read properties file: {0}", e.getMessage());
         }
 
         String inFileName = "stmt.xls";
         String outFileName = "out.csv";
         String arcFileName = "";
         String stmtTypeCommand = "";
+        String xlsTypeCommand = "0";
         String lineSeparatorCommand = "";
         String fieldSeparatorCommand = "";
         String decimalSeparatorCommand = "";
         String errorHandleCommand = "";
-        String xlsTypeStr = "0";
+        String logLevelCommand = "";
 
         String codePage = "UTF-8"; // Code page
         StatementType statementType = StatementType.BTB;
@@ -62,19 +69,30 @@ public class Main {
             if (command.hasOption('f')) fieldSeparatorCommand = command.getOptionValue('f');
             if (command.hasOption('n')) decimalSeparatorCommand = command.getOptionValue('n');
             if (command.hasOption('c')) codePage = command.getOptionValue('c');
-            if (command.hasOption('x')) xlsTypeStr = command.getOptionValue('x');
+            if (command.hasOption('x')) xlsTypeCommand = command.getOptionValue('x');
             if (command.hasOption('d')) dateFormat = command.getOptionValue('d');
             if (command.hasOption('p')) errorHandleCommand = command.getOptionValue('p');
+            if (command.hasOption('e')) logLevelCommand = command.getOptionValue('e');
 
         }
         catch (ParseException e) {
-            logger.log(System.Logger.Level.ERROR, "E000. Invalid command line.", e.getMessage());
+            logr.log(System.Logger.Level.ERROR, "error.E002","E002. Invalid command line: {0}", e.getMessage());
             HelpFormatter help = new HelpFormatter();
             help.printHelp(Main.class.getSimpleName(), options);
             return;
         }
 
         Util.init();
+
+        if (!logLevelCommand.isEmpty()) {
+            for (System.Logger.Level type : System.Logger.Level.values()) {
+                if (type.name().equals(logLevelCommand)) {
+                    logr.setMinLogLevel(type);
+                    break;
+                }
+            }
+            logr.log(System.Logger.Level.TRACE,"trace.log_level", "Log level is set: {0}", logr.getMinLogLevel().name());
+        }
 
         if (!lineSeparatorCommand.isEmpty()) {
             if (lineSeparatorCommand.charAt(0) == 'r') Util.lSep = "\r";
@@ -83,32 +101,32 @@ public class Main {
                 if (lineSeparatorCommand.charAt(1) == 'r') Util.lSep += "\r";
                 else if (lineSeparatorCommand.charAt(1) == 'n') Util.lSep += "\n";
             }
-            logger.log(System.Logger.Level.INFO, "System line separator was override: " + lineSeparatorCommand);
+            logr.log(System.Logger.Level.TRACE, "trace.line_separator", "System line separator was override: {0}", lineSeparatorCommand);
         }
 
-        if (!xlsTypeStr.isEmpty()) {
+        if (!xlsTypeCommand.isEmpty()) {
             for (XLSType type : XLSType.values()) {
-                if (type.name().equals(xlsTypeStr)) {
+                if (type.name().equals(xlsTypeCommand)) {
                     xlsType = type;
                     break;
                 }
             }
-            logger.log(System.Logger.Level.INFO,"Excel file format is set: " + xlsType.name());
+            logr.log(System.Logger.Level.TRACE,"trace.excel_format", "Excel file format is set: {0}", xlsType.name());
         }
 
         if (!fieldSeparatorCommand.isEmpty()) {
             Util.fSep = fieldSeparatorCommand;
-            logger.log(System.Logger.Level.INFO, "Field separator is set: " + fieldSeparatorCommand);
+            logr.log(System.Logger.Level.TRACE, "trace.field_separator", "Field separator is set: {0}", fieldSeparatorCommand);
         }
 
         if (!decimalSeparatorCommand.isEmpty()) {
             Util.dSep = decimalSeparatorCommand;
-            logger.log(System.Logger.Level.INFO, "Decimal separator is set: " + decimalSeparatorCommand);
+            logr.log(System.Logger.Level.TRACE, "trace.decimal_separator", "Decimal separator is set: {0}", decimalSeparatorCommand);
         }
 
         if (!dateFormat.isEmpty()) {
             Util.outDateFormat = dateFormat;
-            logger.log(System.Logger.Level.INFO, "Date format is set: " + dateFormat);
+            logr.log(System.Logger.Level.TRACE, "trace.date_format","Date format is set: {0}", dateFormat);
         }
 
         if (!errorHandleCommand.isEmpty()) {
@@ -118,22 +136,22 @@ public class Main {
                     break;
                 }
             }
-            logger.log(System.Logger.Level.INFO, "Process termination strategy: " + errorHandle.name());
+            logr.log(System.Logger.Level.TRACE, "trace.error_handle","Process termination strategy: {0}", errorHandle.name());
         }
 
         if (Util.dSep.equals(Util.fSep)) {
-            logger.log(System.Logger.Level.ERROR, "E010. Field separator is set equal with decimal separator (\"" + Util.dSep + "\"). Unable to create correct CSV file.");
+            logr.log(System.Logger.Level.ERROR, "error.E010","E010. Field separator is set equal with decimal separator ({0}}). Unable to create correct CSV file.", Util.dSep);
             return;
         }
 
         File inFile = new File(inFileName);
         File outFile = new File(outFileName);
         if (inFileName.equals(outFileName)) {
-            logger.log(System.Logger.Level.ERROR,"E011. Input and output parameters must be different.");
+            logr.log(System.Logger.Level.ERROR,"error.E011", "E011. Input and output parameters must be different.");
             return;
         }
         if ((!inFile.isDirectory() && outFile.isDirectory()) || (inFile.isDirectory() && !outFile.isDirectory())) {
-            logger.log(System.Logger.Level.ERROR,"E012. Input and output parameters must be only directories or must be only files simultaneously.");
+            logr.log(System.Logger.Level.ERROR,"error.E012", "E012. Input and output parameters must be only directories or must be only files simultaneously.");
             return;
         }
         if (inFile.isDirectory()) {
@@ -154,7 +172,7 @@ public class Main {
                     break;
                 }
             }
-            logger.log(System.Logger.Level.INFO,"Statement type is set: " + statementType.name());
+            logr.log(System.Logger.Level.TRACE,"trace.statement_type", "Statement type is set: {0}", statementType.name());
         }
 
         AParser stmtParser = null;
@@ -192,38 +210,41 @@ public class Main {
                 iProceessed++;
 
                 if (iProceessed > 0) {
-                    logger.log(System.Logger.Level.INFO, "");
-                    logger.log(System.Logger.Level.INFO, "Input statement file: " + nextInFileName);
+                    logr.log(System.Logger.Level.INFO, "info.space", "");
+                    logr.log(System.Logger.Level.INFO, "info.input_file","Input statement file: {0}", nextInFileName);
                 }
                 if (stmtParser.process(nextInFileName, xlsType, nextOutFileName, codePage, errorHandle, nextArcFileName)) {
-                    logger.log(System.Logger.Level.INFO, "Output file created: " + nextOutFileName +
-                            (arcFileName.isEmpty() ? "" : " Archive file created: " + nextArcFileName));
+                    logr.log(System.Logger.Level.INFO,"info.output_file", "Output file created: {0}", nextOutFileName);
+                    if (!arcFileName.isEmpty()) {
+                        logr.log(System.Logger.Level.INFO,"info.arc_file", "Archive file created: {0}", nextArcFileName);
+                    }
                     iSuccess++;
                 }
             }
             if (iSuccess > 0) {
-                logger.log(System.Logger.Level.INFO, "");
+                logr.log(System.Logger.Level.INFO, "info.space","");
             }
-            logger.log(System.Logger.Level.INFO, "Processed " + iProceessed + " file(s), successful " + iSuccess + " file(s).");
+            logr.log(System.Logger.Level.INFO, "info.total_files", "Processed {0} file(s), successful {1} file(s).", iProceessed, iSuccess);
         }
         else {
-            logger.log(System.Logger.Level.ERROR, "E013. There is no parser available for statement type: " + statementType.name());
+            logr.log(System.Logger.Level.ERROR, "error.E013", "E013. There is no parser available for statement type: {0}", statementType.name());
         }
     }
 
     static Options makeCmdOptions() {
         Options options = new Options();
-        options.addRequiredOption("i", "input", true, "* Input XLS file or directory, required");
-        options.addRequiredOption("o", "output", true, "* Output CSV file or directory, required");
-        options.addOption("a", "archive", true, "Archive file or directory, no archivation by default");
-        options.addOption("s", "stmt-type", true, "Statement type (BTB - BTB Bank), BTB by default");
-        options.addOption("l", "line-separator", true, "Line separator (\"n\" or \"rn\"), system separator by default");
-        options.addOption("f", "field-separator", true, "Field separator, \";\" by default");
-        options.addOption("n", "numeric-separator", true, "Numeric separator, \".\" or \",\", system separator by default");
-        options.addOption("c", "codepage", true, "Output file in specified code page, default UTF-8");
-        options.addOption("x", "xls-type", true, "XLS file type (AUTO - auto defining, XLS only, XLSX only), AUTO by default");
-        options.addOption("d", "date-format", true, "Output date format, YYYY-MM-DD by default");
-        options.addOption("p", "process-termination", true, "Process termination (when error leads to fail operation): ALL - fail when any error, FORMAT - fail when only format errors (before parsing), NONE - try not to fail when any error");
+        options.addRequiredOption("i", "input", true, Util.resource("cmd.i", "* Input XLS file or directory, required"));
+        options.addRequiredOption("o", "output", true, Util.resource("cmd.o", "* Output CSV file or directory, required"));
+        options.addOption("a", "archive", true, Util.resource("cmd.a", "Archive file or directory, no archivation by default"));
+        options.addOption("s", "stmt-type", true, Util.resource("cmd.s", "Statement type (BTB - BTB Bank), BTB by default"));
+        options.addOption("l", "line-separator", true, Util.resource("cmd.l", "Line separator (\"n\" or \"rn\"), system separator by default"));
+        options.addOption("f", "field-separator", true, Util.resource("cmd.f", "Field separator, \";\" by default"));
+        options.addOption("n", "numeric-separator", true, Util.resource("cmd.n", "Numeric separator, \".\" or \",\", system separator by default"));
+        options.addOption("c", "codepage", true, Util.resource("cmd.c", "Output file in specified code page, UTF-8 by default"));
+        options.addOption("x", "xls-type", true, Util.resource("cmd.x", "XLS file type (AUTO - auto defining, XLS only, XLSX only), AUTO by default"));
+        options.addOption("d", "date-format", true, Util.resource("cmd.d", "Output date format, YYYY-MM-DD by default"));
+        options.addOption("p", "process-termination", true, Util.resource("cmd.p", "Process termination (when error leads to fail operation): ALL - fail when any error, FORMAT - fail when only format errors (before parsing), NONE - try not to fail when any error"));
+        options.addOption("e", "log-level", true, Util.resource("cmd.e", "Log level (DEBUG, TRACE, INFO, WARNING, ERROR), INFO by default"));
         return options;
     }
 
@@ -239,7 +260,7 @@ public class Main {
                 }
             }
             catch (IOException e) {
-                logger.log(System.Logger.Level.ERROR, "E014. Error reading directory: " + fileName + ": ", e);
+                logr.log(System.Logger.Level.ERROR, "error.E014", "E014. Error reading directory {0}: {1}", fileName, e.getMessage());
             }
         }
         else {

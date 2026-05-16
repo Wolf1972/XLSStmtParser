@@ -55,11 +55,11 @@ abstract public class AParser {
         File out = new File(outFileName);
 
         if (!input.exists()) {
-            Main.logger.log(System.Logger.Level.ERROR, "E020. Input file is not found: " + inFileName);
+            Main.logr.log(System.Logger.Level.ERROR,"error.E020","E020. Input file is not found: {0}", inFileName);
             return false;
         }
         if (!input.renameTo(tmpIn)) {
-            Main.logger.log(System.Logger.Level.ERROR,"E021. Error renaming input file " + inFileName + " to " + tmpInFileName);
+            Main.logr.log(System.Logger.Level.ERROR,"error.E021", "E021. Error renaming input file {0} to {1}", inFileName, tmpInFileName);
             return false;
         }
 
@@ -75,7 +75,7 @@ abstract public class AParser {
                 }
             }
             catch (IOException e) {
-                Main.logger.log(System.Logger.Level.ERROR,"E022. Can't define Excel file type.");
+                Main.logr.log(System.Logger.Level.ERROR,"error.E022", "E022. Can't define Excel file type");
             }
         }
 
@@ -93,7 +93,7 @@ abstract public class AParser {
                     chs = Charset.forName(charset);
                 }
                 catch (Exception e) {
-                    Main.logger.log(System.Logger.Level.ERROR,"E023. Unknown output file charset: " + charset);
+                    Main.logr.log(System.Logger.Level.ERROR,"error.E023", "E023. Unknown output file charset: {0}", charset);
                     chs = StandardCharsets.UTF_8; // Error, use charset by default
                 }
                 try (FileOutputStream fileOut = new FileOutputStream(tmpOutFileName);
@@ -105,19 +105,19 @@ abstract public class AParser {
                     }
                 }
                 catch (Exception e) {
-                    Main.logger.log(System.Logger.Level.ERROR,"E024. Error opening output file: " + outFileName + " : " + e.getMessage());
+                    Main.logr.log(System.Logger.Level.ERROR,"error.E024","E024. Error opening output file: {0}: {1}", outFileName, e.getMessage());
                 }
                 finally {
 
                     if (tmpOut.exists()) {
                         if (out.exists()) { // Remove old output file
                             if (!out.delete()) {
-                                Main.logger.log(System.Logger.Level.ERROR,"E025. Can't delete old output file: " + outFileName);
+                                Main.logr.log(System.Logger.Level.ERROR,"error.E025", "E025. Can't delete previous output file: {0}", outFileName);
                                 result = false;
                             }
                         }
                         if (!tmpOut.renameTo(out)) {
-                            Main.logger.log(System.Logger.Level.ERROR,"E026. Error renaming output file " + tmpOutFileName + " to " + outFileName);
+                            Main.logr.log(System.Logger.Level.ERROR,"error.E026", "E026. Error renaming output file {0} to {1}", tmpOutFileName, outFileName);
                             result = false;
                         }
                     }
@@ -130,17 +130,17 @@ abstract public class AParser {
                         }
                     }
                     catch (Exception e) {
-                        Main.logger.log(System.Logger.Level.ERROR,"E027. Error when closing XLS file: " + outFileName);
+                        Main.logr.log(System.Logger.Level.ERROR,"error.E027", "E027. Error when closing XLS file: {0}", outFileName);
                         result = false;
                     }
                 }
             }
             catch (Exception e) {
-                Main.logger.log(System.Logger.Level.ERROR,"E028. Error opening XLS file: " + inFileName);
+                Main.logr.log(System.Logger.Level.ERROR,"error.E028", "E028. Error opening Excel file: {0}", inFileName);
             }
         }
         catch (IOException e) {
-            Main.logger.log(System.Logger.Level.ERROR,"E029. Error opening XLS file: " + inFileName);
+            Main.logr.log(System.Logger.Level.ERROR,"error.E029", "E029. Error opening input file: {0}", inFileName);
         }
         finally {
             if (tmpIn.exists()) {
@@ -148,26 +148,26 @@ abstract public class AParser {
                     if (!arcFileName.isEmpty()) { // Is archive need?
                         File arc = new File(arcFileName);
                         if (arc.exists()) {
-                            Main.logger.log(System.Logger.Level.ERROR,"E030. Archive file already exists: " + arcFileName);
+                            Main.logr.log(System.Logger.Level.ERROR,"error.E030", "E030. Archive file already exists: {0}", arcFileName);
                         }
                         else {
                             if (!tmpIn.renameTo(arc)) {
-                                Main.logger.log(System.Logger.Level.ERROR,"E031. Can't create archive file  " + arcFileName);
+                                Main.logr.log(System.Logger.Level.ERROR,"error.E031", "E031. Can't create archive file: {0}", arcFileName);
                                 // We don't need to delete the input file because we couldn't create archive
                             }
                         }
                     }
                     else if (!tmpIn.delete()) { // Delete statement file
-                        Main.logger.log(System.Logger.Level.ERROR,"E032. Error deleting temporary file: " + tmpInFileName);
+                        Main.logr.log(System.Logger.Level.ERROR,"error.E032", "E032. Error deleting temporary file: {0}", tmpInFileName);
                     }
                 }
                 else { // When error: return the input file with its previous name
                     if (!tmpIn.renameTo(input)) {
-                        Main.logger.log(System.Logger.Level.ERROR,"E033. Error renaming input file " + tmpInFileName + " to " + inFileName);
+                        Main.logr.log(System.Logger.Level.ERROR,"error.E033", "E033. Error rollback input file {0} to {1}", tmpInFileName, inFileName);
                     }
                     if (out.exists()) {
                         if (!out.delete()) {
-                            Main.logger.log(System.Logger.Level.ERROR,"E034. Can't delete output file with error: " + outFileName);
+                            Main.logr.log(System.Logger.Level.ERROR,"error.E034", "E034. Can't delete output file with error: {0}", outFileName);
                         }
                     }
                 }
@@ -187,7 +187,7 @@ abstract public class AParser {
             }
         }
         catch (Exception e) {
-            Main.logger.log(System.Logger.Level.ERROR,"E035. Can't get value for cell " + (rowNo + 1) + ":" + (cellNo));
+            Main.logr.log(System.Logger.Level.ERROR,"error.E035", "E035. Can't get value for cell {0}:{1}", rowNo + 1, cellNo + 1);
         }
         return result;
     }
@@ -213,7 +213,7 @@ abstract public class AParser {
                 str = new DecimalFormat("#0.00").format(dec);
             }
             catch (Exception x) {
-                Main.logger.log(System.Logger.Level.ERROR,"E036. Can't get decimal value for cell " + (rowNo + 1) + ":" + (cellNo));
+                Main.logr.log(System.Logger.Level.ERROR,"error.E036", "E036. Can't get decimal value for cell {0}:{1}", rowNo + 1, cellNo + 1);
             }
         }
         return str;
@@ -241,7 +241,7 @@ abstract public class AParser {
                 str = localDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
             }
             catch (Exception x) {
-                Main.logger.log(System.Logger.Level.ERROR,"E037. Can't get date value for cell " + (rowNo + 1) + ":" + (cellNo));
+                Main.logr.log(System.Logger.Level.ERROR,"error.E037", "E037. Can't get date value for cell {0}:{1}", rowNo + 1, cellNo + 1);
             }
         }
         return str;
