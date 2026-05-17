@@ -1,13 +1,22 @@
 package ru.bis.javautil.xlsparse;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
+
+import static java.nio.file.Files.isRegularFile;
 
 public class Util {
 
-    static String lSep; // line separator
+    static String lSep = System.lineSeparator(); // line separator (must be initialized before all)
     static String dSep; // decimal separator
     static String fSep; // field separator
     static String fileSep; // file separator
@@ -21,7 +30,6 @@ public class Util {
         dSep = String.valueOf(symbols.getDecimalSeparator());
         Main.logr.log(System.Logger.Level.TRACE, "trace.system_decimal_separator", "System decimal separator: {0}", dSep);
 
-        lSep = System.lineSeparator();
         String lineSepStr = "";
         for (int i = 0; i < lSep.length(); i++) {
             lineSepStr += " 0x" + String.format("%04x", (int) lSep.charAt(i));
@@ -32,6 +40,8 @@ public class Util {
 
         fileSep = File.separator;
         Main.logr.log(System.Logger.Level.TRACE,"trace.system_path_separator", "System file path separator: {0}", fileSep);
+
+        outDateFormat = "yyyy-MM-dd";
     }
 
     static String long2str(long amount) { // Converts long value to string with 2 digital digits separated
@@ -96,5 +106,26 @@ public class Util {
         catch (Exception e) {
             return MessageFormat.format(defaultString, args);
         }
+    }
+
+    static List<Path> getFileList(String fileName) { // Returns list of files, in case inFile is a directory returns all files from it
+        List<Path> aFiles = new ArrayList<>();
+        File file = new File(fileName);
+        if (file.isDirectory()) {
+            try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(Paths.get(fileName))) {
+                for (Path path : directoryStream) {
+                    if (isRegularFile(path)) {
+                        aFiles.add(path.getFileName());
+                    }
+                }
+            }
+            catch (IOException e) {
+                Main.logr.log(System.Logger.Level.ERROR, "error.E014", "E014. Error reading directory {0}: {1}", fileName, e.getMessage());
+            }
+        }
+        else {
+            aFiles.add(file.toPath());
+        }
+        return aFiles;
     }
 }

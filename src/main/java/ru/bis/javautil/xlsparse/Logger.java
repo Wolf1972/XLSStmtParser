@@ -1,6 +1,11 @@
 package ru.bis.javautil.xlsparse;
 
+import java.io.*;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class Logger {
     static private int minLogLevelWeight; // Weight of current min log level
@@ -11,9 +16,21 @@ public class Logger {
             System.Logger.Level.WARNING,
             System.Logger.Level.ERROR
     };
+    static DateTimeFormatter logDtFormatter = DateTimeFormatter.ofPattern("dd.MM.yy HH:mm:ss");
+    static String logTmpFileName = "log.tmp";
+    static String logFileName = "current.log";
+    static BufferedWriter logWriter = null;
 
     Logger(System.Logger.Level minLevel) {
         setMinLogLevel(minLevel);
+        try {
+            Charset chs = StandardCharsets.UTF_8;
+            OutputStream os = new FileOutputStream("current.log");
+            logWriter = new BufferedWriter(new OutputStreamWriter(os, chs));
+        }
+        catch (Exception e) {
+            log(System.Logger.Level.ERROR, Util.resource("error.E016", "E016. Error creating log file: {0}: {1}", logTmpFileName, e.getMessage()));
+        }
     }
 
     int getLogLevelWeight(System.Logger.Level level) {
@@ -36,7 +53,33 @@ public class Logger {
     }
 
     void log(System.Logger.Level level, String msg) { // Raw log output
-        System.out.println(level.getName() + " : " + msg);
+        System.out.println(LocalDateTime.now().format(logDtFormatter) + " " + level.getName() + ": " + msg);
+        if (logWriter != null) {
+            try {
+                logWriter.write(LocalDateTime.now().format(logDtFormatter) + " " + level.getName() + ": " + msg + Util.lSep);
+            }
+            catch (Exception e) {
+                System.out.println(Util.resource("error.E017", "E017. Error writing log file: {0}", e.getMessage()));
+            }
+        }
+    }
+
+    void close() {
+        if (logWriter != null) {
+            try {
+                logWriter.close();
+            }
+            catch (Exception e) {
+                log(System.Logger.Level.ERROR, Util.resource("error.E018", "E018. Error closing log file: {0}: {1}", logTmpFileName, e.getMessage()));
+            }
+            logWriter = null;
+            File tmpLog = new File(logTmpFileName);
+            if (tmpLog.exists()) {
+                if (!tmpLog.renameTo(new File(logFileName))) {
+                    log(System.Logger.Level.ERROR, Util.resource("error.E019", "E019. Error renaming log file: {0} to {1}", logTmpFileName, logFileName));
+                }
+            }
+        }
     }
 
     /**

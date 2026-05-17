@@ -3,37 +3,34 @@ package ru.bis.javautil.xlsparse;
 import org.apache.commons.cli.*;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-import static java.nio.file.Files.isRegularFile;
-
+/** Parses Excel statement and creates CSV file with regular data
+ *
+ */
 public class Main {
 
     static final Logger logr = new Logger(System.Logger.Level.INFO);
-    static Locale locale = Locale.of("ru");
+    static Locale locale = Locale.of("");
     static ResourceBundle bundle = null;
 
-    public static void main(String[] args) {try {
+    public static void main(String[] args) {
+        try {
             bundle = ResourceBundle.getBundle("strings", locale);
         }
         catch (Exception e) {
-            // One message without resources
+            // The only one message without resources
             logr.log(System.Logger.Level.WARNING, "E000. Can't load resource file." + e.getMessage());
         }
 
-        logr.log(System.Logger.Level.INFO, Util.resource("info.title", "XLS Statement parser"));
         final Properties properties = new Properties();
         try {
             properties.load(Main.class.getClassLoader().getResourceAsStream("project.properties"));
-            final String version = properties.getProperty("version");
-            logr.log(System.Logger.Level.INFO, "info.ver", "Version {0}", version);
+            String version = properties.getProperty("version");
+            logr.log(System.Logger.Level.INFO, Util.resource("info.title", "XLS Statement parser. Version: {0}", version));
         }
         catch (final Exception e) {
             logr.log(System.Logger.Level.ERROR, "error.E001", "E001. Can't read properties file: {0}", e.getMessage());
@@ -49,8 +46,9 @@ public class Main {
         String decimalSeparatorCommand = "";
         String errorHandleCommand = "";
         String logLevelCommand = "";
+        String languageCommand = "";
 
-        String codePage = "UTF-8"; // Code page
+        String codePage = "UTF-8"; // Code page for output CSV
         StatementType statementType = StatementType.BTB;
         XLSType xlsType = XLSType.AUTO; // Old XLS format by default
         String dateFormat = "yyyy-MM-dd"; // Output date format
@@ -73,6 +71,7 @@ public class Main {
             if (command.hasOption('d')) dateFormat = command.getOptionValue('d');
             if (command.hasOption('p')) errorHandleCommand = command.getOptionValue('p');
             if (command.hasOption('e')) logLevelCommand = command.getOptionValue('e');
+            if (command.hasOption('g')) languageCommand = command.getOptionValue('g');
 
         }
         catch (ParseException e) {
@@ -83,6 +82,16 @@ public class Main {
         }
 
         Util.init();
+
+        if (!languageCommand.isEmpty()) {
+            try {
+                locale = Locale.of(languageCommand);
+                bundle = ResourceBundle.getBundle("strings", locale);
+            }
+            catch (Exception e) {
+                logr.log(System.Logger.Level.ERROR,"error.E015", "Unavailable locale: {0}", languageCommand);
+            }
+        }
 
         if (!logLevelCommand.isEmpty()) {
             for (System.Logger.Level type : System.Logger.Level.values()) {
@@ -181,9 +190,9 @@ public class Main {
         }
 
         if (stmtParser != null) {
-            List<Path> aFiles = getFileList(inFileName);
+            List<Path> aFiles = Util.getFileList(inFileName);
 
-            int iProceessed = 0;
+            int iProcessed = 0;
             int iSuccess = 0;
 
             for (Path file : aFiles) {
@@ -207,9 +216,9 @@ public class Main {
                     }
                 }
 
-                iProceessed++;
+                iProcessed++;
 
-                if (iProceessed > 0) {
+                if (iProcessed > 0) {
                     logr.log(System.Logger.Level.INFO, "info.space", "");
                     logr.log(System.Logger.Level.INFO, "info.input_file","Input statement file: {0}", nextInFileName);
                 }
@@ -224,11 +233,12 @@ public class Main {
             if (iSuccess > 0) {
                 logr.log(System.Logger.Level.INFO, "info.space","");
             }
-            logr.log(System.Logger.Level.INFO, "info.total_files", "Processed {0} file(s), successful {1} file(s).", iProceessed, iSuccess);
+            logr.log(System.Logger.Level.INFO, "info.total_files", "Processed {0} file(s), successful {1} file(s).", iProcessed, iSuccess);
         }
         else {
             logr.log(System.Logger.Level.ERROR, "error.E013", "E013. There is no parser available for statement type: {0}", statementType.name());
         }
+        logr.close();
     }
 
     static Options makeCmdOptions() {
@@ -245,27 +255,8 @@ public class Main {
         options.addOption("d", "date-format", true, Util.resource("cmd.d", "Output date format, YYYY-MM-DD by default"));
         options.addOption("p", "process-termination", true, Util.resource("cmd.p", "Process termination (when error leads to fail operation): ALL - fail when any error, FORMAT - fail when only format errors (before parsing), NONE - try not to fail when any error"));
         options.addOption("e", "log-level", true, Util.resource("cmd.e", "Log level (DEBUG, TRACE, INFO, WARNING, ERROR), INFO by default"));
-        return options;
-    }
+        options.addOption("g", "language", true, Util.resource("cmd.g", "Messages language (en, ru), \"en\" by default"));
 
-    static List<Path> getFileList(String fileName) { // Returns list of files, in case inFile is a directory returns all files from it
-        List<Path> aFiles = new ArrayList<>();
-        File file = new File(fileName);
-        if (file.isDirectory()) {
-            try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(Paths.get(fileName))) {
-                for (Path path : directoryStream) {
-                    if (isRegularFile(path)) {
-                        aFiles.add(path.getFileName());
-                    }
-                }
-            }
-            catch (IOException e) {
-                logr.log(System.Logger.Level.ERROR, "error.E014", "E014. Error reading directory {0}: {1}", fileName, e.getMessage());
-            }
-        }
-        else {
-            aFiles.add(file.toPath());
-        }
-        return aFiles;
+        return options;
     }
 }
