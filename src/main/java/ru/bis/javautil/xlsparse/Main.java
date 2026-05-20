@@ -56,191 +56,207 @@ public class Main {
 
         CommandLineParser parser = new DefaultParser();
         Options options = makeCmdOptions();
-        try {
-            CommandLine command = parser.parse(options, args);
 
-            if (command.hasOption('i')) inFileName = command.getOptionValue('i');
-            if (command.hasOption('o')) outFileName = command.getOptionValue('o');
-            if (command.hasOption('a')) arcFileName = command.getOptionValue('a');
-            if (command.hasOption('s')) stmtTypeCommand = command.getOptionValue('s');
-            if (command.hasOption('l')) lineSeparatorCommand = command.getOptionValue('l');
-            if (command.hasOption('f')) fieldSeparatorCommand = command.getOptionValue('f');
-            if (command.hasOption('n')) decimalSeparatorCommand = command.getOptionValue('n');
-            if (command.hasOption('c')) codePage = command.getOptionValue('c');
-            if (command.hasOption('x')) xlsTypeCommand = command.getOptionValue('x');
-            if (command.hasOption('d')) dateFormat = command.getOptionValue('d');
-            if (command.hasOption('p')) errorHandleCommand = command.getOptionValue('p');
-            if (command.hasOption('e')) logLevelCommand = command.getOptionValue('e');
-            if (command.hasOption('g')) languageCommand = command.getOptionValue('g');
+        while (true) { // Don't worry - cycle will be passed only once (only to use break instead return - we need to close log file when fatal errors found)
 
-        }
-        catch (ParseException e) {
-            logr.log(System.Logger.Level.ERROR, "error.E002","E002. Invalid command line: {0}", e.getMessage());
-            HelpFormatter help = new HelpFormatter();
-            help.printHelp(Main.class.getSimpleName(), options);
-            return;
-        }
-
-        Util.init();
-
-        if (!languageCommand.isEmpty()) {
             try {
-                locale = Locale.of(languageCommand);
-                bundle = ResourceBundle.getBundle("strings", locale);
-            }
-            catch (Exception e) {
-                logr.log(System.Logger.Level.ERROR,"error.E015", "Unavailable locale: {0}", languageCommand);
-            }
-        }
+                CommandLine command = parser.parse(options, args);
 
-        if (!logLevelCommand.isEmpty()) {
-            for (System.Logger.Level type : System.Logger.Level.values()) {
-                if (type.name().equals(logLevelCommand)) {
-                    logr.setMinLogLevel(type);
-                    break;
+                if (command.hasOption('i')) inFileName = command.getOptionValue('i');
+                if (command.hasOption('o')) outFileName = command.getOptionValue('o');
+                if (command.hasOption('a')) arcFileName = command.getOptionValue('a');
+                if (command.hasOption('s')) stmtTypeCommand = command.getOptionValue('s');
+                if (command.hasOption('l')) lineSeparatorCommand = command.getOptionValue('l');
+                if (command.hasOption('f')) fieldSeparatorCommand = command.getOptionValue('f');
+                if (command.hasOption('n')) decimalSeparatorCommand = command.getOptionValue('n');
+                if (command.hasOption('c')) codePage = command.getOptionValue('c');
+                if (command.hasOption('x')) xlsTypeCommand = command.getOptionValue('x');
+                if (command.hasOption('d')) dateFormat = command.getOptionValue('d');
+                if (command.hasOption('p')) errorHandleCommand = command.getOptionValue('p');
+                if (command.hasOption('e')) logLevelCommand = command.getOptionValue('e');
+                if (command.hasOption('g')) languageCommand = command.getOptionValue('g');
+
+            } catch (ParseException e) {
+                logr.log(System.Logger.Level.ERROR, "error.E002", "E002. Invalid command line: {0}", e.getMessage());
+                HelpFormatter help = new HelpFormatter();
+                help.printHelp(Main.class.getSimpleName(), options);
+                break;
+            }
+
+            Util.init();
+
+            if (!languageCommand.isEmpty()) {
+                try {
+                    locale = Locale.of(languageCommand);
+                    bundle = ResourceBundle.getBundle("strings", locale);
+                } catch (Exception e) {
+                    logr.log(System.Logger.Level.ERROR, "error.E015", "Unavailable locale: {0}", languageCommand);
                 }
             }
-            logr.log(System.Logger.Level.TRACE,"trace.log_level", "Log level is set: {0}", logr.getMinLogLevel().name());
-        }
 
-        if (!lineSeparatorCommand.isEmpty()) {
-            if (lineSeparatorCommand.charAt(0) == 'r') Util.lSep = "\r";
-            else if (lineSeparatorCommand.charAt(0) == 'n') Util.lSep = "\n";
-            if (lineSeparatorCommand.length() > 1) {
-                if (lineSeparatorCommand.charAt(1) == 'r') Util.lSep += "\r";
-                else if (lineSeparatorCommand.charAt(1) == 'n') Util.lSep += "\n";
-            }
-            logr.log(System.Logger.Level.TRACE, "trace.line_separator", "System line separator was override: {0}", lineSeparatorCommand);
-        }
-
-        if (!xlsTypeCommand.isEmpty()) {
-            for (XLSType type : XLSType.values()) {
-                if (type.name().equals(xlsTypeCommand)) {
-                    xlsType = type;
-                    break;
-                }
-            }
-            logr.log(System.Logger.Level.TRACE,"trace.excel_format", "Excel file format is set: {0}", xlsType.name());
-        }
-
-        if (!fieldSeparatorCommand.isEmpty()) {
-            Util.fSep = fieldSeparatorCommand;
-            logr.log(System.Logger.Level.TRACE, "trace.field_separator", "Field separator is set: {0}", fieldSeparatorCommand);
-        }
-
-        if (!decimalSeparatorCommand.isEmpty()) {
-            Util.dSep = decimalSeparatorCommand;
-            logr.log(System.Logger.Level.TRACE, "trace.decimal_separator", "Decimal separator is set: {0}", decimalSeparatorCommand);
-        }
-
-        if (!dateFormat.isEmpty()) {
-            Util.outDateFormat = dateFormat;
-            logr.log(System.Logger.Level.TRACE, "trace.date_format","Date format is set: {0}", dateFormat);
-        }
-
-        if (!errorHandleCommand.isEmpty()) {
-            for (ErrHandleStrategy strategy : ErrHandleStrategy.values()) {
-                if (strategy.name().equals(errorHandleCommand)) {
-                    errorHandle = strategy;
-                    break;
-                }
-            }
-            logr.log(System.Logger.Level.TRACE, "trace.error_handle","Process termination strategy: {0}", errorHandle.name());
-        }
-
-        if (Util.dSep.equals(Util.fSep)) {
-            logr.log(System.Logger.Level.ERROR, "error.E010","E010. Field separator is set equal with decimal separator ({0}}). Unable to create correct CSV file.", Util.dSep);
-            return;
-        }
-
-        File inFile = new File(inFileName);
-        File outFile = new File(outFileName);
-        if (inFileName.equals(outFileName)) {
-            logr.log(System.Logger.Level.ERROR,"error.E011", "E011. Input and output parameters must be different.");
-            return;
-        }
-        if ((!inFile.isDirectory() && outFile.isDirectory()) || (inFile.isDirectory() && !outFile.isDirectory())) {
-            logr.log(System.Logger.Level.ERROR,"error.E012", "E012. Input and output parameters must be only directories or must be only files simultaneously.");
-            return;
-        }
-        if (inFile.isDirectory()) {
-            if (!"/\\".contains(inFileName.substring(inFileName.length() - 1))) { // Add last "\" or "/" to arc directory name, if needed
-                inFileName += Util.fileSep;
-            }
-        }
-        if (outFile.isDirectory()) {
-            if (!"/\\".contains(outFileName.substring(outFileName.length() - 1))) { // Add last "\" or "/" to arc directory name, if needed
-                outFileName += Util.fileSep;
-            }
-        }
-
-        if (!stmtTypeCommand.isEmpty()) {
-            for (StatementType stmtType : StatementType.values()) {
-                if (stmtType.name().equals(stmtTypeCommand)) {
-                    statementType = stmtType;
-                    break;
-                }
-            }
-            logr.log(System.Logger.Level.TRACE,"trace.statement_type", "Statement type is set: {0}", statementType.name());
-        }
-
-        AParser stmtParser = null;
-        if (statementType == StatementType.BTB) {
-            stmtParser = ParserFactory.getParser(StatementType.BTB);
-        }
-
-        if (stmtParser != null) {
-            List<Path> aFiles = Util.getFileList(inFileName);
-
-            int iProcessed = 0;
-            int iSuccess = 0;
-
-            for (Path file : aFiles) {
-                File next = file.toFile();
-                String nextInFileName = inFileName + next.getName();
-                String nextOutFileName = outFileName;
-                String nextArcFileName = arcFileName;
-
-                if (outFile.isDirectory()) {
-                    nextOutFileName = outFileName + Util.changeFileExtension(next.getName(), "csv");
-                }
-                if (!arcFileName.isEmpty()) { // Is archive need?
-                    File arc = new File(arcFileName);
-                    if (arc.isDirectory()) {
-                        LocalDateTime now = LocalDateTime.now();
-                        String timeStamp = now.format(DateTimeFormatter.ofPattern("yyMMdd_HHmmss"));
-                        if (!"/\\".contains(arcFileName.substring(arcFileName.length() - 1))) { // Add last "\" or "/" to arc directory name, if needed
-                            arcFileName += Util.fileSep;
-                        }
-                        nextArcFileName = arcFileName + timeStamp + "_" + next.getName();
+            if (!logLevelCommand.isEmpty()) {
+                for (System.Logger.Level type : System.Logger.Level.values()) {
+                    if (type.name().equals(logLevelCommand)) {
+                        logr.setMinLogLevel(type);
+                        break;
                     }
                 }
+                logr.log(System.Logger.Level.TRACE, "trace.log_level", "Log level is set: {0}", logr.getMinLogLevel().name());
+            }
 
-                iProcessed++;
+            if (!lineSeparatorCommand.isEmpty()) {
+                if (lineSeparatorCommand.charAt(0) == 'r') Util.lSep = "\r";
+                else if (lineSeparatorCommand.charAt(0) == 'n') Util.lSep = "\n";
+                if (lineSeparatorCommand.length() > 1) {
+                    if (lineSeparatorCommand.charAt(1) == 'r') Util.lSep += "\r";
+                    else if (lineSeparatorCommand.charAt(1) == 'n') Util.lSep += "\n";
+                }
+                logr.log(System.Logger.Level.TRACE, "trace.line_separator", "System line separator was override: {0}", lineSeparatorCommand);
+            }
 
+            if (!xlsTypeCommand.isEmpty()) {
+                for (XLSType type : XLSType.values()) {
+                    if (type.name().equals(xlsTypeCommand)) {
+                        xlsType = type;
+                        break;
+                    }
+                }
+                logr.log(System.Logger.Level.TRACE, "trace.excel_format", "Excel file format is set: {0}", xlsType.name());
+            }
+
+            if (!fieldSeparatorCommand.isEmpty()) {
+                Util.fSep = fieldSeparatorCommand;
+                logr.log(System.Logger.Level.TRACE, "trace.field_separator", "Field separator is set: {0}", fieldSeparatorCommand);
+            }
+
+            if (!decimalSeparatorCommand.isEmpty()) {
+                Util.dSep = decimalSeparatorCommand;
+                logr.log(System.Logger.Level.TRACE, "trace.decimal_separator", "Decimal separator is set: {0}", decimalSeparatorCommand);
+            }
+
+            if (!dateFormat.isEmpty()) {
+                Util.outDateFormat = dateFormat;
+                logr.log(System.Logger.Level.TRACE, "trace.date_format", "Date format is set: {0}", dateFormat);
+            }
+
+            if (!errorHandleCommand.isEmpty()) {
+                for (ErrHandleStrategy strategy : ErrHandleStrategy.values()) {
+                    if (strategy.name().equals(errorHandleCommand)) {
+                        errorHandle = strategy;
+                        break;
+                    }
+                }
+                logr.log(System.Logger.Level.TRACE, "trace.error_handle", "Process termination strategy: {0}", errorHandle.name());
+            }
+
+            if (Util.dSep.equals(Util.fSep)) {
+                logr.log(System.Logger.Level.ERROR, "error.E010", "E010. Field separator is set equal with decimal separator ({0}}). Unable to create correct CSV file.", Util.dSep);
+                break;
+            }
+
+            File inFile = new File(inFileName);
+            File outFile = new File(outFileName);
+            if (inFileName.equals(outFileName)) {
+                logr.log(System.Logger.Level.ERROR, "error.E011", "E011. Input and output parameters must be different.");
+                break;
+            }
+            if (inFile.exists()) {
+                if (outFile.exists()) {
+                    if ((!inFile.isDirectory() && outFile.isDirectory()) || (inFile.isDirectory() && !outFile.isDirectory())) {
+                        logr.log(System.Logger.Level.ERROR, "error.E012", "E012. Input and output parameters must be only directories or must be only files simultaneously.");
+                        break;
+                    }
+                } else if (inFile.isDirectory()) { // There is no output directory when the input path is a directory
+                    logr.log(System.Logger.Level.ERROR, "error.E004", "E004. There is no output directory: {0}", outFile);
+                    break;
+                }
+            } else {
+                logr.log(System.Logger.Level.ERROR, "error.E003", "There is no input file or directory: {0}", inFile);
+                break;
+            }
+            if (inFile.isDirectory()) {
+                if (!"/\\".contains(inFileName.substring(inFileName.length() - 1))) { // Add last "\" or "/" to arc directory name, if needed
+                    inFileName += Util.fileSep;
+                }
+            }
+            if (outFile.isDirectory()) {
+                if (!"/\\".contains(outFileName.substring(outFileName.length() - 1))) { // Add last "\" or "/" to arc directory name, if needed
+                    outFileName += Util.fileSep;
+                }
+            }
+
+            if (!stmtTypeCommand.isEmpty()) {
+                for (StatementType stmtType : StatementType.values()) {
+                    if (stmtType.name().equals(stmtTypeCommand)) {
+                        statementType = stmtType;
+                        break;
+                    }
+                }
+                logr.log(System.Logger.Level.TRACE, "trace.statement_type", "Statement type is set: {0}", statementType.name());
+            }
+
+            AParser stmtParser = null;
+            if (statementType == StatementType.BTB) {
+                stmtParser = ParserFactory.getParser(StatementType.BTB);
+            }
+
+            if (stmtParser != null) {
+                List<Path> aFiles = Util.getFileList(inFileName);
+
+                int iProcessed = 0;
+                int iSuccess = 0;
+
+                for (Path file : aFiles) {
+                    File next = file.toFile();
+                    String nextInFileName = inFileName + next.getName();
+                    String nextOutFileName = outFileName;
+                    String nextArcFileName = arcFileName;
+
+                    if (outFile.isDirectory()) {
+                        nextOutFileName = outFileName + Util.changeFileExtension(next.getName(), "csv");
+                    }
+                    if (!arcFileName.isEmpty()) { // Is archive need?
+                        File arc = new File(arcFileName);
+                        if (arc.isDirectory()) {
+                            LocalDateTime now = LocalDateTime.now();
+                            String timeStamp = now.format(DateTimeFormatter.ofPattern("yyMMdd_HHmmss"));
+                            if (!"/\\".contains(arcFileName.substring(arcFileName.length() - 1))) { // Add last "\" or "/" to arc directory name, if needed
+                                arcFileName += Util.fileSep;
+                            }
+                            nextArcFileName = arcFileName + timeStamp + "_" + next.getName();
+                        }
+                    }
+
+                    iProcessed++;
+
+                    if (iProcessed > 0) {
+                        logr.log(System.Logger.Level.INFO, "info.space", "");
+                        logr.log(System.Logger.Level.INFO, "info.input_file", "Input statement file: {0}", nextInFileName);
+                    }
+                    if (stmtParser.process(nextInFileName, xlsType, nextOutFileName, codePage, errorHandle, nextArcFileName)) {
+                        logr.log(System.Logger.Level.INFO, "info.output_file", "Output file created: {0}", nextOutFileName);
+                        if (!arcFileName.isEmpty()) {
+                            logr.log(System.Logger.Level.INFO, "info.arc_file", "Archive file created: {0}", nextArcFileName);
+                        }
+                        iSuccess++;
+                    }
+                }
                 if (iProcessed > 0) {
                     logr.log(System.Logger.Level.INFO, "info.space", "");
-                    logr.log(System.Logger.Level.INFO, "info.input_file","Input statement file: {0}", nextInFileName);
                 }
-                if (stmtParser.process(nextInFileName, xlsType, nextOutFileName, codePage, errorHandle, nextArcFileName)) {
-                    logr.log(System.Logger.Level.INFO,"info.output_file", "Output file created: {0}", nextOutFileName);
-                    if (!arcFileName.isEmpty()) {
-                        logr.log(System.Logger.Level.INFO,"info.arc_file", "Archive file created: {0}", nextArcFileName);
-                    }
-                    iSuccess++;
-                }
+                logr.log(System.Logger.Level.INFO, "info.total_files", "Processed {0} file(s), successful {1} file(s).", iProcessed, iSuccess);
+            } else {
+                logr.log(System.Logger.Level.ERROR, "error.E013", "E013. There is no parser available for statement type: {0}", statementType.name());
             }
-            if (iSuccess > 0) {
-                logr.log(System.Logger.Level.INFO, "info.space","");
-            }
-            logr.log(System.Logger.Level.INFO, "info.total_files", "Processed {0} file(s), successful {1} file(s).", iProcessed, iSuccess);
-        }
-        else {
-            logr.log(System.Logger.Level.ERROR, "error.E013", "E013. There is no parser available for statement type: {0}", statementType.name());
+            break;
         }
         logr.close();
     }
 
+    /**
+     * Fills command options
+     * @return command options
+     */
     static Options makeCmdOptions() {
         Options options = new Options();
         options.addRequiredOption("i", "input", true, Util.resource("cmd.i", "* Input XLS file or directory, required"));

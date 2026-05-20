@@ -25,15 +25,28 @@ abstract public class AParser {
     XSSFWorkbook nBook;
     XSSFSheet nSheet;
 
+    /**
+     * Checks statement format (by structure, keywords, etc
+     * Must be define in inheritors
+     * @return correct or not
+     */
     boolean check() { // Check statement for expected format
         return true;
     }
+
+    /**
+     * Main method for create CSV
+     * Must be define in inheritors
+     * @param errHandleStrategy - error handle strategy (ALL, FORMAT, NONE)
+     * @return statement parse result
+     */
     boolean parse(ErrHandleStrategy errHandleStrategy) { // Parse all statement and create CSV
         return true;
     }
 
     /**
      * Main method to parse statement
+     * Common method for all kinds of statements
      * @param inFileName - input file name
      * @param type - XLS or XLSX
      * @param outFileName - output file name
@@ -176,7 +189,12 @@ abstract public class AParser {
         return result;
     }
 
-
+    /**
+     * Returns string value from specified cell for any Excel format with error handle
+     * @param rowNo - row index (from 0)
+     * @param cellNo - column index (from 0)
+     * @return cell value
+     */
     String getCellString(int rowNo, int cellNo) { // Returns string from specified row and cell from any book - XLS or XLSX
         String result = "";
         try {
@@ -187,11 +205,28 @@ abstract public class AParser {
             }
         }
         catch (Exception e) {
-            Main.logr.log(System.Logger.Level.ERROR,"error.E035", "E035. Can't get value for cell {0}:{1}", rowNo + 1, cellNo + 1);
+            try { // May be numeric cell
+                double dec = 0;
+                if (nSheet != null) {
+                    dec = nSheet.getRow(rowNo).getCell(cellNo).getNumericCellValue();
+                } else if (sheet != null) {
+                    dec = sheet.getRow(rowNo).getCell(cellNo).getNumericCellValue();
+                }
+                result = new DecimalFormat("#0.00").format(dec);
+            }
+            catch (Exception ex) {
+                Main.logr.log(System.Logger.Level.ERROR, "error.E035", "E035. Can't get value for cell {0}:{1}", rowNo + 1, cellNo + 1);
+            }
         }
         return result;
     }
 
+    /**
+     * Returns number value from specified cell for any Excel format with error handle
+     * @param rowNo - row index (from 0)
+     * @param cellNo - column index (from 0)
+     * @return cell value
+     */
     String getCellNumber(int rowNo, int cellNo) { // Returns string with decimal value like "0.00" from String or Numeric cell
         String str = "";
         try {
@@ -219,26 +254,31 @@ abstract public class AParser {
         return str;
     }
 
+    /**
+     * Returns date value from specified cell for any Excel format with error handle
+     * @param rowNo - row index (from 0)
+     * @param cellNo - column index (from 0)
+     * @return cell value
+     */
     String getCellDate(int rowNo, int cellNo) { // Returns string with date value "DD.MM.YYYY" from String or Date cell
         String str = "";
         try {
-            if (nSheet != null) {
-                str = nSheet.getRow(rowNo).getCell(cellNo).getStringCellValue();
-            }
-            else if (sheet != null) {
-                str = sheet.getRow(rowNo).getCell(cellNo).getStringCellValue();
-            }
-        }
-        catch (Exception e) { // May be date cell
             Date date = new Date();
+            if (nSheet != null) {
+                date = nSheet.getRow(rowNo).getCell(cellNo).getDateCellValue();
+            } else if (sheet != null) {
+                date = sheet.getRow(rowNo).getCell(cellNo).getDateCellValue();
+            }
+            LocalDate localDate = LocalDate.ofInstant(date.toInstant(), ZoneId.systemDefault());
+            str = localDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+        }
+        catch (Exception e) { // May be string cell
             try {
                 if (nSheet != null) {
-                    date = nSheet.getRow(rowNo).getCell(cellNo).getDateCellValue();
+                    str = nSheet.getRow(rowNo).getCell(cellNo).getStringCellValue();
                 } else if (sheet != null) {
-                    date = sheet.getRow(rowNo).getCell(cellNo).getDateCellValue();
+                    str = sheet.getRow(rowNo).getCell(cellNo).getStringCellValue();
                 }
-                LocalDate localDate = LocalDate.ofInstant(date.toInstant(), ZoneId.systemDefault());
-                str = localDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
             }
             catch (Exception x) {
                 Main.logr.log(System.Logger.Level.ERROR,"error.E037", "E037. Can't get date value for cell {0}:{1}", rowNo + 1, cellNo + 1);
